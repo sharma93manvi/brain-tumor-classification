@@ -1,0 +1,19 @@
+# Auto detect text files and perform LF normalization
+* text=auto
+
+# Notebook files
+*.ipynb text eol=lf
+
+# Python files
+*.py text eol=lf
+
+# Markdown files
+*.md text eol=lf
+
+# Binary files
+*.pkl binary
+*.pth binary
+*.pt binary
+*.h5 binary
+*.hdf5 binary
+
