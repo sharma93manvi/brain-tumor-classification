@@ -315,8 +315,8 @@ st.sidebar.markdown("---")
 
 # Check which models are available
 fine_tuned_available = os.path.exists('models/efficientnet_b3_finetuned.pth')
-effnet_available = (os.path.exists('models/model_effnet.pkl') or os.path.exists('models/brain_tumor_classifier_efficientnet_b3.pkl')) and (os.path.exists('models/scaler_effnet.pkl') or os.path.exists('models/scaler_efficientnet_b3.pkl'))
-resnet_available = (os.path.exists('models/model_resnet.pkl') or os.path.exists('models/brain_tumor_classifier_resnet50.pkl')) and (os.path.exists('models/scaler_resnet.pkl') or os.path.exists('models/scaler_resnet50.pkl'))
+effnet_available = os.path.exists('models/brain_tumor_classifier_efficientnet_b3.pkl') and os.path.exists('models/scaler_efficientnet_b3.pkl')
+resnet_available = os.path.exists('models/brain_tumor_classifier_resnet50.pkl') and os.path.exists('models/scaler_resnet50.pkl')
 
 # Build model options list
 model_options = []
@@ -448,21 +448,11 @@ def load_feature_extraction_model(model_name):
         
         # Load classifier and scaler
         if model_name == 'efficientnet':
-            # Try new naming first, fallback to old naming
-            if os.path.exists('models/brain_tumor_classifier_efficientnet_b3.pkl'):
-                classifier_path = 'models/brain_tumor_classifier_efficientnet_b3.pkl'
-                scaler_path = 'models/scaler_efficientnet_b3.pkl'
-            else:
-                classifier_path = 'models/model_effnet.pkl'
-                scaler_path = 'models/scaler_effnet.pkl'
+            classifier_path = 'models/brain_tumor_classifier_efficientnet_b3.pkl'
+            scaler_path = 'models/scaler_efficientnet_b3.pkl'
         else:  # resnet50
-            # Try new naming first, fallback to old naming
-            if os.path.exists('models/brain_tumor_classifier_resnet50.pkl'):
-                classifier_path = 'models/brain_tumor_classifier_resnet50.pkl'
-                scaler_path = 'models/scaler_resnet50.pkl'
-            else:
-                classifier_path = 'models/model_resnet.pkl'
-                scaler_path = 'models/scaler_resnet.pkl'
+            classifier_path = 'models/brain_tumor_classifier_resnet50.pkl'
+            scaler_path = 'models/scaler_resnet50.pkl'
         
         if os.path.exists(classifier_path) and os.path.exists(scaler_path):
             classifier = joblib.load(classifier_path)
@@ -506,6 +496,9 @@ def preprocess_for_fine_tuning(image_array):
 def generate_gradcam(model, tensor, predicted_class_idx, enhanced_image):
     """Generate Grad-CAM heatmap for tumor localization"""
     try:
+        # Ensure model is in eval mode but allows gradients
+        model.eval()
+        
         # Register hook to get activations from the last convolutional layer
         activations = []
         gradients = []
@@ -514,7 +507,8 @@ def generate_gradcam(model, tensor, predicted_class_idx, enhanced_image):
             activations.append(output)
         
         def backward_hook(module, grad_input, grad_output):
-            gradients.append(grad_output[0])
+            if grad_output[0] is not None:
+                gradients.append(grad_output[0])
         
         # Find the last convolutional layer in EfficientNet
         target_layer = None
@@ -538,12 +532,18 @@ def generate_gradcam(model, tensor, predicted_class_idx, enhanced_image):
         handle_forward = target_layer.register_forward_hook(forward_hook)
         handle_backward = target_layer.register_backward_hook(backward_hook)
         
-        # Forward pass with gradients
-        tensor.requires_grad_()
+        # Forward pass with gradients (tensor should already have requires_grad=True)
+        # Ensure model allows gradients
+        for param in model.parameters():
+            param.requires_grad = True
+        
         outputs = model(tensor)
         
         # Backward pass
         model.zero_grad()
+        # Ensure the output requires grad
+        if not outputs.requires_grad:
+            outputs = outputs.requires_grad_(True)
         outputs[0, predicted_class_idx].backward()
         
         # Get gradients and activations
@@ -577,6 +577,15 @@ def generate_gradcam(model, tensor, predicted_class_idx, enhanced_image):
         return cam_resized
         
     except Exception as e:
+        # Log error for debugging
+        import traceback
+        error_msg = f"Grad-CAM error: {str(e)}\n{traceback.format_exc()}"
+        # Store error in session state for debugging (only first error)
+        if 'gradcam_error' not in st.session_state:
+            st.session_state.gradcam_error = error_msg
+        # Print to console for Streamlit Cloud logs
+        print(f"Grad-CAM Error: {str(e)}")
+        print(traceback.format_exc())
         return None
 
 def overlay_heatmap(image, heatmap, alpha=0.4, threshold_percentile=75):
@@ -616,6 +625,15 @@ def predict_fine_tuned(model, image_array, return_gradcam=False):
     """Predict using fine-tuned model"""
     tensor, enhanced = preprocess_for_fine_tuning(image_array)
     
+    # For Grad-CAM, we need a separate tensor with gradients enabled
+    if return_gradcam:
+        # Clone and detach, then enable gradients
+        tensor_gradcam = tensor.clone().detach()
+        tensor_gradcam.requires_grad_(True)
+        # Ensure it's on the same device as the model
+        if next(model.parameters()).is_cuda:
+            tensor_gradcam = tensor_gradcam.cuda()
+    
     with torch.no_grad():
         outputs = model(tensor)
         probabilities = torch.nn.functional.softmax(outputs, dim=1)
@@ -624,7 +642,16 @@ def predict_fine_tuned(model, image_array, return_gradcam=False):
     
     gradcam_heatmap = None
     if return_gradcam:
-        gradcam_heatmap = generate_gradcam(model, tensor, predicted_idx, enhanced)
+        # Use the tensor with gradients enabled for Grad-CAM
+        try:
+            gradcam_heatmap = generate_gradcam(model, tensor_gradcam, predicted_idx, enhanced)
+            if gradcam_heatmap is None:
+                print("Warning: generate_gradcam returned None")
+        except Exception as e:
+            print(f"Error in generate_gradcam: {str(e)}")
+            import traceback
+            print(traceback.format_exc())
+            gradcam_heatmap = None
     
     return probabilities[0].numpy(), enhanced, gradcam_heatmap
 
@@ -717,12 +744,25 @@ if uploaded_file is not None:
         # Start timing
         start_time = time.time()
         
+        # Initialize gradcam_heatmap variable
+        gradcam_heatmap = None
+        
         with st.spinner("Loading model and making prediction..."):
             if "Fine-Tuned" in model_type:
                 model = load_fine_tuned_model()
                 if model is not None:
                     # Generate Grad-CAM for fine-tuned model
-                    probabilities, processed_img, gradcam_heatmap = predict_fine_tuned(model, image_array, return_gradcam=True)
+                    try:
+                        probabilities, processed_img, gradcam_heatmap = predict_fine_tuned(model, image_array, return_gradcam=True)
+                        # Debug: Check if gradcam_heatmap was generated
+                        if gradcam_heatmap is None:
+                            print("Warning: Grad-CAM heatmap is None after prediction")
+                    except Exception as e:
+                        print(f"Error during prediction with Grad-CAM: {str(e)}")
+                        import traceback
+                        print(traceback.format_exc())
+                        # Fallback: try without Grad-CAM
+                        probabilities, processed_img, gradcam_heatmap = predict_fine_tuned(model, image_array, return_gradcam=False)
                 else:
                     st.error("**Fine-Tuned Model Not Available**")
                     st.warning("""
@@ -731,6 +771,8 @@ if uploaded_file is not None:
                     **To use the fine-tuned model:**
                     1. Train the model using the notebook: `notebooks/brain_tumor_classification.ipynb`
                     2. Or copy the model file from your Colab/Google Drive to `models/efficientnet_b3_finetuned.pth`
+                    
+                    **Note:** On Streamlit Cloud, the fine-tuned model file (~123MB) is tracked by Git LFS and may need to be downloaded separately.
                     
                     **Alternative:** Use the Feature Extraction models which are available:
                     - EfficientNet-B3 Feature Extraction (91.34% accuracy)
@@ -748,8 +790,8 @@ if uploaded_file is not None:
                     st.error("**EfficientNet-B3 Model Not Available**")
                     st.warning("""
                     Model files not found. Please ensure these files exist:
-                    - `models/brain_tumor_classifier_efficientnet_b3.pkl` or `models/model_effnet.pkl`
-                    - `models/scaler_efficientnet_b3.pkl` or `models/scaler_effnet.pkl`
+                    - `models/brain_tumor_classifier_efficientnet_b3.pkl`
+                    - `models/scaler_efficientnet_b3.pkl`
                     
                     **To generate these files:**
                     Run the training cells in `notebooks/brain_tumor_classification.ipynb`
@@ -765,8 +807,8 @@ if uploaded_file is not None:
                     st.error("**ResNet50 Model Not Available**")
                     st.warning("""
                     Model files not found. Please ensure these files exist:
-                    - `models/brain_tumor_classifier_resnet50.pkl` or `models/model_resnet.pkl`
-                    - `models/scaler_resnet50.pkl` or `models/scaler_resnet.pkl`
+                    - `models/brain_tumor_classifier_resnet50.pkl`
+                    - `models/scaler_resnet50.pkl`
                     
                     **To generate these files:**
                     Run the training cells in `notebooks/brain_tumor_classification.ipynb`
@@ -776,7 +818,8 @@ if uploaded_file is not None:
         # Calculate inference time
         inference_time = time.time() - start_time
         
-        # Initialize gradcam_heatmap (only available for Fine-Tuned model)
+        # gradcam_heatmap is already initialized above (line 722) and set by predict_fine_tuned if Fine-Tuned model
+        # For non-Fine-Tuned models, ensure it's None
         if "Fine-Tuned" not in model_type:
             gradcam_heatmap = None
         
@@ -929,7 +972,20 @@ if uploaded_file is not None:
         elif "Fine-Tuned" in model_type and gradcam_heatmap is None:
             st.markdown("---")
             st.markdown("### Tumor Localization")
-            st.warning("Tumor localization visualization could not be generated. This may occur if the model architecture doesn't support Grad-CAM or if there was an error during visualization generation.")
+            error_info = ""
+            if 'gradcam_error' in st.session_state:
+                error_info = f"\n\n**Debug Info:** {st.session_state.gradcam_error[:200]}"
+            st.warning(f"""
+            **Tumor localization visualization could not be generated.**
+            
+            Possible reasons:
+            - Grad-CAM generation encountered an error
+            - Model architecture compatibility issue
+            - The fine-tuned model file may not be fully loaded on Streamlit Cloud
+            {error_info}
+            
+            **Note:** Grad-CAM visualization requires the fine-tuned model to be available and properly loaded.
+            """)
         
         # Clinical Information Section
         st.markdown("---")
