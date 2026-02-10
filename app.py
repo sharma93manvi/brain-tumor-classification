@@ -917,18 +917,27 @@ if uploaded_file is not None:
         with st.expander("View Probability Distribution Chart", expanded=False):
             import matplotlib.pyplot as plt
             
-            fig, ax = plt.subplots(figsize=(7, 4))  # Reduced from (10, 6) to (7, 4)
+            fig, ax = plt.subplots(figsize=(6, 3))  # Reduced to smaller size
             colors = ['#2ecc71' if i == predicted_idx else '#95a5a6' for i in range(len(CLASS_NAMES))]
             bars = ax.barh(CLASS_NAMES, probabilities, color=colors)
-            ax.set_xlabel("Probability", fontsize=11)
-            ax.set_title("Class Probability Distribution", fontsize=12, fontweight='bold')
-            ax.set_xlim(0, 1)
+            ax.set_xlabel("Probability", fontsize=10)
+            ax.set_title("Class Probability Distribution", fontsize=11, fontweight='bold')
+            ax.set_xlim(0, 1.15)  # Increased xlim to make room for labels
             
-            # Add value labels on bars
+            # Add value labels on bars - positioned inside bars if space allows, otherwise outside
             for i, (bar, prob) in enumerate(zip(bars, probabilities)):
                 width = bar.get_width()
-                ax.text(width + 0.01, bar.get_y() + bar.get_height()/2, 
-                       f'{prob*100:.2f}%', ha='left', va='center', fontsize=10, fontweight='bold')
+                # Position label inside bar if probability > 0.15, otherwise outside
+                if prob > 0.15:
+                    # Inside the bar, white text for visibility
+                    ax.text(width / 2, bar.get_y() + bar.get_height()/2, 
+                           f'{prob*100:.2f}%', ha='center', va='center', 
+                           fontsize=9, fontweight='bold', color='white')
+                else:
+                    # Outside the bar, to the right
+                    ax.text(width + 0.02, bar.get_y() + bar.get_height()/2, 
+                           f'{prob*100:.2f}%', ha='left', va='center', 
+                           fontsize=9, fontweight='bold', color='#333333')
             
             plt.tight_layout()
             st.pyplot(fig, use_container_width=True)
@@ -938,7 +947,7 @@ if uploaded_file is not None:
             # Only show Grad-CAM for tumor classes (not for "No Tumor")
             if predicted_class != "No Tumor":
                 st.markdown("---")
-                st.markdown("### Tumor Localization Visualization")
+                st.markdown("### Tumor Localization")
                 st.markdown("""
                 <div style="background-color: #e6f2ff; padding: 1rem; border-radius: 5px; margin-bottom: 1rem;">
                     <strong>Grad-CAM Heatmap:</strong> This visualization shows which regions of the MRI image 
@@ -968,7 +977,7 @@ if uploaded_file is not None:
             else:
                 # For "No Tumor" predictions, show a different message
                 st.markdown("---")
-                st.markdown("### Tumor Localization Visualization")
+                st.markdown("### Tumor Localization")
                 st.markdown("""
                 <div style="background-color: #e6f2ff; padding: 1rem; border-radius: 5px; margin-bottom: 1rem;">
                     <strong>No Tumor Detected:</strong> The model has classified this image as "No Tumor". 
