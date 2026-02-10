@@ -40,22 +40,44 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS for better styling
+# Custom CSS for medical professional styling
 st.markdown("""
 <style>
+    /* Medical Professional Color Scheme */
+    :root {
+        --medical-blue: #0066cc;
+        --medical-light-blue: #e6f2ff;
+        --medical-dark-blue: #004499;
+        --medical-green: #28a745;
+        --medical-red: #dc3545;
+        --medical-gray: #6c757d;
+    }
+    
     .main-header {
         font-size: 2.5rem;
-        font-weight: bold;
-        color: #1f77b4;
+        font-weight: 700;
+        color: #0066cc;
         text-align: center;
-        margin-bottom: 1rem;
+        margin-bottom: 0.5rem;
+        letter-spacing: -0.5px;
     }
+    
+    .subtitle {
+        text-align: center;
+        color: #6c757d;
+        font-size: 1.1rem;
+        margin-bottom: 2rem;
+        font-weight: 300;
+    }
+    
     .prediction-box {
         padding: 1.5rem;
-        border-radius: 10px;
-        background-color: #f0f2f6;
+        border-radius: 8px;
+        background-color: #f8f9fa;
         margin: 1rem 0;
+        border: 1px solid #dee2e6;
     }
+    
     .warning-box {
         padding: 1rem;
         border-radius: 5px;
@@ -63,14 +85,72 @@ st.markdown("""
         border-left: 4px solid #ffc107;
         margin: 1rem 0;
     }
+    
+    .clinical-info-box {
+        padding: 1.2rem;
+        border-radius: 8px;
+        background-color: #e6f2ff;
+        border-left: 4px solid #0066cc;
+        margin: 1rem 0;
+    }
+    
+    .disclaimer-box {
+        padding: 1rem;
+        border-radius: 5px;
+        background-color: #f8d7da;
+        border-left: 4px solid #dc3545;
+        margin: 1rem 0;
+        font-size: 0.9rem;
+    }
+    
+    .metric-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 1rem;
+        border-radius: 8px;
+        text-align: center;
+    }
+    
+    /* Hide Streamlit branding for professional look */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    
+    /* Professional spacing */
+    .stApp {
+        background-color: #ffffff;
+    }
+    
+    /* Section headers */
+    h2 {
+        color: #0066cc;
+        font-weight: 600;
+        border-bottom: 2px solid #e6f2ff;
+        padding-bottom: 0.5rem;
+        margin-top: 2rem;
+    }
+    
+    h3 {
+        color: #004499;
+        font-weight: 600;
+    }
 </style>
 """, unsafe_allow_html=True)
 
-# Title and header
-st.markdown('<h1 class="main-header">Brain Tumor Classification from MRI Scans</h1>', unsafe_allow_html=True)
+# Title and header with medical professional styling
+st.markdown('<h1 class="main-header">🧠 Brain Tumor Classification System</h1>', unsafe_allow_html=True)
 st.markdown("""
-<div style='text-align: center; color: #666; margin-bottom: 2rem;'>
-    Upload an MRI scan to classify brain tumors using deep learning models
+<div class="subtitle">
+    AI-Powered Clinical Decision Support Tool for MRI Analysis
+</div>
+""", unsafe_allow_html=True)
+
+# Medical disclaimer banner
+st.markdown("""
+<div class="disclaimer-box">
+    <strong>⚠️ Medical Disclaimer:</strong> This tool is for research and educational purposes only. 
+    It is not intended to replace professional medical judgment, diagnosis, or treatment. 
+    All predictions should be verified by qualified radiologists and medical professionals.
 </div>
 """, unsafe_allow_html=True)
 
@@ -142,6 +222,37 @@ This tool classifies brain MRI scans into:
 
 # Class names
 CLASS_NAMES = ["No Tumor", "Glioma", "Meningioma", "Pituitary"]
+
+# Clinical information for each tumor type
+CLINICAL_INFO = {
+    "No Tumor": {
+        "description": "Normal brain tissue with no evidence of tumor",
+        "prevalence": "Most common finding",
+        "next_steps": "Routine follow-up as per clinical protocol",
+        "significance": "Normal finding"
+    },
+    "Glioma": {
+        "description": "Primary brain tumor arising from glial cells (astrocytes, oligodendrocytes, or ependymal cells)",
+        "prevalence": "Most common primary brain tumor (~30% of all brain tumors)",
+        "characteristics": "Can be low-grade (benign) or high-grade (malignant). Location and grade determine prognosis.",
+        "next_steps": "Requires neurosurgical consultation, biopsy for grading, and multidisciplinary tumor board review",
+        "significance": "High clinical significance - requires immediate evaluation"
+    },
+    "Meningioma": {
+        "description": "Tumor arising from the meninges (protective layers surrounding the brain)",
+        "prevalence": "Most common benign brain tumor (~37% of all primary brain tumors)",
+        "characteristics": "Usually slow-growing and benign. More common in women and older adults.",
+        "next_steps": "Neurosurgical evaluation recommended. Small, asymptomatic tumors may be monitored.",
+        "significance": "Moderate to high significance - requires neurosurgical assessment"
+    },
+    "Pituitary": {
+        "description": "Tumor of the pituitary gland, often benign adenoma",
+        "prevalence": "Common (~15% of all brain tumors)",
+        "characteristics": "Can cause hormonal imbalances. May be microadenoma (<1cm) or macroadenoma (>1cm).",
+        "next_steps": "Endocrinology and neurosurgery consultation. Hormone level testing recommended.",
+        "significance": "Moderate to high significance - requires endocrinological and neurosurgical evaluation"
+    }
+}
 
 @st.cache_resource(show_spinner=False)
 def load_fine_tuned_model():
@@ -497,6 +608,55 @@ if uploaded_file is not None:
         
         plt.tight_layout()
         st.pyplot(fig)
+        
+        # Clinical Information Section
+        st.markdown("---")
+        st.markdown("### 📋 Clinical Information")
+        
+        if not is_potentially_ood:
+            clinical_info = CLINICAL_INFO[predicted_class]
+            
+            col_info1, col_info2 = st.columns([1, 1])
+            
+            with col_info1:
+                st.markdown(f"""
+                <div class="clinical-info-box">
+                    <h4 style="color: #0066cc; margin-top: 0;">About {predicted_class}</h4>
+                    <p><strong>Description:</strong> {clinical_info['description']}</p>
+                    <p><strong>Prevalence:</strong> {clinical_info['prevalence']}</p>
+                    {f"<p><strong>Characteristics:</strong> {clinical_info.get('characteristics', 'N/A')}</p>" if 'characteristics' in clinical_info else ""}
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with col_info2:
+                st.markdown(f"""
+                <div class="clinical-info-box">
+                    <h4 style="color: #0066cc; margin-top: 0;">Clinical Significance</h4>
+                    <p><strong>Significance:</strong> {clinical_info['significance']}</p>
+                    <p><strong>Recommended Next Steps:</strong></p>
+                    <p>{clinical_info['next_steps']}</p>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            # Additional clinical notes
+            st.markdown("""
+            <div style="background-color: #f8f9fa; padding: 1rem; border-radius: 5px; margin-top: 1rem;">
+                <strong>Important Clinical Notes:</strong>
+                <ul style="margin-top: 0.5rem;">
+                    <li>This AI prediction is a screening tool and should not replace clinical judgment</li>
+                    <li>All findings require correlation with patient history, physical examination, and other imaging studies</li>
+                    <li>Final diagnosis should be confirmed by board-certified radiologists</li>
+                    <li>Treatment decisions should be made by qualified medical professionals</li>
+                </ul>
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.warning("""
+            **Clinical Information Not Available**
+            
+            Due to high uncertainty in the prediction, clinical information cannot be reliably provided. 
+            Please verify the image quality and ensure it is a brain MRI scan before proceeding with clinical interpretation.
+            """)
     
     except UnidentifiedImageError as e:
         st.error("**Image Format Error**")
@@ -608,44 +768,53 @@ else:
     
     with col1:
         st.markdown("""
-        **No Tumor**
-        - Normal brain tissue
-        """)
+        <div style="padding: 1rem; background-color: #e6f2ff; border-radius: 5px;">
+            <strong>No Tumor</strong>
+            <p style="margin: 0.5rem 0 0 0; font-size: 0.9rem;">Normal brain tissue with no evidence of tumor. Most common finding in routine screening</p>
+        </div>
+        """, unsafe_allow_html=True)
     
     with col2:
         st.markdown("""
-        **Glioma**
-        - Most common primary brain tumor
-        """)
+        <div style="padding: 1rem; background-color: #ffe6e6; border-radius: 5px;">
+            <strong>Glioma</strong>
+            <p style="margin: 0.5rem 0 0 0; font-size: 0.9rem;">Primary brain tumor from glial cells. Most common primary brain tumor (~30%)</p>
+        </div>
+        """, unsafe_allow_html=True)
     
     with col3:
         st.markdown("""
-        **Meningioma**
-        - Usually benign tumor
-        """)
+        <div style="padding: 1rem; background-color: #fff3cd; border-radius: 5px;">
+            <strong>Meningioma</strong>
+            <p style="margin: 0.5rem 0 0 0; font-size: 0.9rem;">Tumor from meninges. Most common benign brain tumor (~37%)</p>
+        </div>
+        """, unsafe_allow_html=True)
     
     with col4:
         st.markdown("""
-        **Pituitary**
-        - Pituitary gland tumor
-        """)
+        <div style="padding: 1rem; background-color: #d4edda; border-radius: 5px;">
+            <strong>Pituitary</strong>
+            <p style="margin: 0.5rem 0 0 0; font-size: 0.9rem;">Pituitary gland tumor. Common (~15%), often benign adenoma</p>
+        </div>
+        """, unsafe_allow_html=True)
     
+    # Professional Footer
     st.markdown("---")
-    st.markdown("### Important Disclaimer")
-    st.warning("""
-    **This is a research tool for educational purposes only.**
-    
-    - Not intended for clinical diagnosis
-    - Always consult qualified medical professionals
-    - Results should not be used as a substitute for professional medical advice
-    - Model performance may vary with different image qualities and acquisition protocols
-    """)
-
-# Footer
-st.markdown("---")
-st.markdown("""
-<div style='text-align: center; color: #666; padding: 1rem;'>
-    <small>Brain Tumor Classification System | Built with Streamlit & PyTorch</small>
-</div>
-""", unsafe_allow_html=True)
+    st.markdown("""
+    <div style="background-color: #f8f9fa; padding: 2rem; border-radius: 8px; margin-top: 3rem; text-align: center;">
+        <h4 style="color: #0066cc; margin-bottom: 1rem;">Medical AI Classification System</h4>
+        <p style="color: #6c757d; font-size: 0.9rem; margin-bottom: 0.5rem;">
+            <strong>Intended Use:</strong> Research and educational purposes | Clinical decision support tool
+        </p>
+        <p style="color: #6c757d; font-size: 0.85rem; margin-bottom: 1rem;">
+            This system is designed to assist qualified healthcare professionals and should not replace clinical judgment.
+        </p>
+        <div style="border-top: 1px solid #dee2e6; padding-top: 1rem; margin-top: 1rem;">
+            <p style="color: #6c757d; font-size: 0.8rem; margin: 0;">
+                <strong>Disclaimer:</strong> All predictions require verification by board-certified radiologists. 
+                This tool does not provide medical diagnosis or treatment recommendations.
+            </p>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
