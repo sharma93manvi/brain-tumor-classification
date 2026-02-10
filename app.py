@@ -7,6 +7,7 @@ A web application for classifying brain tumors from MRI scans using deep learnin
 import streamlit as st
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import numpy as np
 import cv2
 from PIL import Image
@@ -502,7 +503,116 @@ def preprocess_for_fine_tuning(image_array):
     
     return tensor, enhanced
 
-def predict_fine_tuned(model, image_array):
+def generate_gradcam(model, tensor, predicted_class_idx, enhanced_image):
+    """Generate Grad-CAM heatmap for tumor localization"""
+    try:
+        # Register hook to get activations from the last convolutional layer
+        activations = []
+        gradients = []
+        
+        def forward_hook(module, input, output):
+            activations.append(output)
+        
+        def backward_hook(module, grad_input, grad_output):
+            gradients.append(grad_output[0])
+        
+        # Find the last convolutional layer in EfficientNet
+        target_layer = None
+        
+        # Try to find in features submodule (EfficientNet structure)
+        if hasattr(model, 'features'):
+            for name, module in model.features.named_modules():
+                if isinstance(module, nn.Conv2d):
+                    target_layer = module
+        
+        # Fallback: search all modules
+        if target_layer is None:
+            for name, module in model.named_modules():
+                if isinstance(module, nn.Conv2d):
+                    target_layer = module
+        
+        if target_layer is None:
+            return None
+        
+        # Register hooks
+        handle_forward = target_layer.register_forward_hook(forward_hook)
+        handle_backward = target_layer.register_backward_hook(backward_hook)
+        
+        # Forward pass with gradients
+        tensor.requires_grad_()
+        outputs = model(tensor)
+        
+        # Backward pass
+        model.zero_grad()
+        outputs[0, predicted_class_idx].backward()
+        
+        # Get gradients and activations
+        if len(gradients) == 0 or len(activations) == 0:
+            handle_forward.remove()
+            handle_backward.remove()
+            return None
+        
+        grads = gradients[0]
+        acts = activations[0]
+        
+        # Compute weights (global average pooling of gradients)
+        weights = torch.mean(grads, dim=(2, 3), keepdim=True)
+        
+        # Weighted combination of activation maps
+        cam = torch.sum(weights * acts, dim=1, keepdim=True)
+        cam = F.relu(cam)  # Apply ReLU
+        
+        # Normalize
+        cam = cam.squeeze().cpu().detach().numpy()
+        cam = cam - cam.min()
+        cam = cam / (cam.max() + 1e-8)
+        
+        # Resize to match original image size
+        cam_resized = cv2.resize(cam, (enhanced_image.shape[1], enhanced_image.shape[0]))
+        
+        # Remove hooks
+        handle_forward.remove()
+        handle_backward.remove()
+        
+        return cam_resized
+        
+    except Exception as e:
+        return None
+
+def overlay_heatmap(image, heatmap, alpha=0.4, threshold_percentile=75):
+    """Overlay heatmap on image with improved contrast for tumor regions"""
+    # Apply thresholding to highlight only high-attention regions
+    threshold = np.percentile(heatmap, threshold_percentile)
+    
+    # Create a masked heatmap that emphasizes high-attention regions
+    masked_heatmap = np.where(heatmap >= threshold, heatmap, heatmap * 0.3)
+    
+    # Normalize the masked heatmap
+    if masked_heatmap.max() > 0:
+        masked_heatmap = (masked_heatmap - masked_heatmap.min()) / (masked_heatmap.max() - masked_heatmap.min() + 1e-8)
+    
+    # Convert heatmap to 0-255 range
+    heatmap_uint8 = (masked_heatmap * 255).astype(np.uint8)
+    
+    # Apply colormap (jet: blue=low, red=high)
+    heatmap_colored = cv2.applyColorMap(heatmap_uint8, cv2.COLORMAP_JET)
+    
+    # Ensure image is RGB
+    if len(image.shape) == 2:
+        image_rgb = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
+    else:
+        image_rgb = image.copy()
+    
+    # Resize heatmap if needed
+    if heatmap_colored.shape[:2] != image_rgb.shape[:2]:
+        heatmap_colored = cv2.resize(heatmap_colored, (image_rgb.shape[1], image_rgb.shape[0]))
+    
+    # Overlay with higher alpha for better visibility of tumor regions
+    overlay = cv2.addWeighted(image_rgb, 1 - alpha, heatmap_colored, alpha, 0)
+    
+    return overlay
+
+def predict_fine_tuned(model, image_array, return_gradcam=False):
     """Predict using fine-tuned model"""
     tensor, enhanced = preprocess_for_fine_tuning(image_array)
     
@@ -510,7 +620,13 @@ def predict_fine_tuned(model, image_array):
         outputs = model(tensor)
         probabilities = torch.nn.functional.softmax(outputs, dim=1)
     
-    return probabilities[0].numpy(), enhanced
+    predicted_idx = np.argmax(probabilities[0].numpy())
+    
+    gradcam_heatmap = None
+    if return_gradcam:
+        gradcam_heatmap = generate_gradcam(model, tensor, predicted_idx, enhanced)
+    
+    return probabilities[0].numpy(), enhanced, gradcam_heatmap
 
 def predict_feature_extraction(extractor, classifier, scaler, image_array):
     """Predict using feature extraction approach"""
@@ -605,7 +721,8 @@ if uploaded_file is not None:
             if "Fine-Tuned" in model_type:
                 model = load_fine_tuned_model()
                 if model is not None:
-                    probabilities, processed_img = predict_fine_tuned(model, image_array)
+                    # Generate Grad-CAM for fine-tuned model
+                    probabilities, processed_img, gradcam_heatmap = predict_fine_tuned(model, image_array, return_gradcam=True)
                 else:
                     st.error("**Fine-Tuned Model Not Available**")
                     st.warning("""
@@ -658,6 +775,10 @@ if uploaded_file is not None:
         
         # Calculate inference time
         inference_time = time.time() - start_time
+        
+        # Initialize gradcam_heatmap (only available for Fine-Tuned model)
+        if "Fine-Tuned" not in model_type:
+            gradcam_heatmap = None
         
         # Find predicted class
         predicted_idx = np.argmax(probabilities)
@@ -762,6 +883,53 @@ if uploaded_file is not None:
         
         plt.tight_layout()
         st.pyplot(fig)
+        
+        # Tumor Localization Visualization (Grad-CAM) - Only for Fine-Tuned model and tumor classes
+        if "Fine-Tuned" in model_type and gradcam_heatmap is not None and not is_potentially_ood:
+            # Only show Grad-CAM for tumor classes (not for "No Tumor")
+            if predicted_class != "No Tumor":
+                st.markdown("---")
+                st.markdown("### Tumor Localization Visualization")
+                st.markdown("""
+                <div style="background-color: #e6f2ff; padding: 1rem; border-radius: 5px; margin-bottom: 1rem;">
+                    <strong>Grad-CAM Heatmap:</strong> This visualization shows which regions of the MRI image 
+                    the model focuses on when making its prediction. <strong>Red/yellow areas</strong> indicate high attention 
+                    (likely tumor regions), while <strong>blue areas</strong> indicate low attention (normal tissue).
+                </div>
+                """, unsafe_allow_html=True)
+                
+                col_orig, col_heatmap = st.columns(2)
+                
+                with col_orig:
+                    st.markdown("#### Original Preprocessed Image")
+                    st.image(processed_img, use_container_width=True, caption="Preprocessed MRI scan")
+                
+                with col_heatmap:
+                    st.markdown("#### Tumor Localization Heatmap")
+                    # Overlay heatmap on processed image with improved contrast for tumor classes
+                    # Using 75th percentile threshold to highlight only high-attention regions
+                    overlay = overlay_heatmap(processed_img, gradcam_heatmap, alpha=0.6, threshold_percentile=75)
+                    st.image(overlay, use_container_width=True, caption="Red/yellow = High attention (tumor region)")
+                
+                st.info("""
+                **Note:** This visualization is an approximation based on the model's attention. 
+                It shows where the model focuses but may not perfectly align with exact tumor boundaries. 
+                For precise tumor segmentation, a dedicated segmentation model would be required.
+                """)
+            else:
+                # For "No Tumor" predictions, show a different message
+                st.markdown("---")
+                st.markdown("### Tumor Localization Visualization")
+                st.markdown("""
+                <div style="background-color: #e6f2ff; padding: 1rem; border-radius: 5px; margin-bottom: 1rem;">
+                    <strong>No Tumor Detected:</strong> The model has classified this image as "No Tumor". 
+                    Tumor localization visualization is only shown when a tumor is detected.
+                </div>
+                """, unsafe_allow_html=True)
+        elif "Fine-Tuned" in model_type and gradcam_heatmap is None:
+            st.markdown("---")
+            st.markdown("### Tumor Localization")
+            st.warning("Tumor localization visualization could not be generated. This may occur if the model architecture doesn't support Grad-CAM or if there was an error during visualization generation.")
         
         # Clinical Information Section
         st.markdown("---")
