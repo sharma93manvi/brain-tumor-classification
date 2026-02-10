@@ -116,6 +116,22 @@ st.markdown("""
     footer {visibility: hidden;}
     header {visibility: hidden;}
     
+    /* Make sidebar toggle button more visible */
+    button[kind="header"] {
+        visibility: visible !important;
+        opacity: 1 !important;
+    }
+    
+    /* Ensure sidebar toggle is always accessible */
+    [data-testid="stSidebar"] {
+        position: relative;
+    }
+    
+    /* Make the collapse button more visible */
+    .css-1d391kg {
+        visibility: visible !important;
+    }
+    
     /* Professional spacing */
     .stApp {
         background-color: #ffffff;
