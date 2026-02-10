@@ -14,6 +14,46 @@ from PIL import UnidentifiedImageError
 import os
 import sys
 import time
+import subprocess
+
+# Ensure Git LFS files are pulled (for Streamlit Cloud deployment)
+@st.cache_resource
+def ensure_lfs_files():
+    """Ensure Git LFS files are downloaded on Streamlit Cloud"""
+    models_dir = 'models'
+    if not os.path.exists(models_dir):
+        os.makedirs(models_dir, exist_ok=True)
+    
+    # Check if we're on Streamlit Cloud and files are missing
+    model_files = [
+        'models/efficientnet_b3_finetuned.pth',
+        'models/brain_tumor_classifier_efficientnet_b3.pkl',
+        'models/brain_tumor_classifier_resnet50.pkl',
+        'models/scaler_efficientnet_b3.pkl',
+        'models/scaler_resnet50.pkl'
+    ]
+    
+    missing_files = [f for f in model_files if not os.path.exists(f)]
+    
+    if missing_files:
+        # Try to pull Git LFS files
+        try:
+            result = subprocess.run(
+                ['git', 'lfs', 'pull'],
+                capture_output=True,
+                text=True,
+                timeout=60
+            )
+            if result.returncode == 0:
+                st.info("Git LFS files pulled successfully")
+        except (subprocess.TimeoutExpired, FileNotFoundError, Exception) as e:
+            # Git LFS might not be available or files already there
+            pass
+    
+    return True
+
+# Run on startup
+ensure_lfs_files()
 
 # Add src to path
 src_path = os.path.join(os.path.dirname(__file__), 'src')
