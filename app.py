@@ -10,6 +10,7 @@ import torch.nn as nn
 import numpy as np
 import cv2
 from PIL import Image
+from PIL import UnidentifiedImageError
 import os
 import sys
 import time
@@ -130,6 +131,11 @@ This tool classifies brain MRI scans into:
 - **Glioma**
 - **Meningioma**
 - **Pituitary Tumor**
+
+**Important Limitations:**
+- The model only recognizes these 4 categories
+- Images from other categories will still be assigned to one of these classes
+- Very low confidence (<40%) or evenly distributed probabilities indicate the image may not belong to any trained category
 
 **Note**: This is a research tool. For clinical use, consult medical professionals.
 """)
@@ -265,8 +271,23 @@ uploaded_file = st.file_uploader(
 if uploaded_file is not None:
     # Load and display image
     try:
-        image = Image.open(uploaded_file)
-        image_array = np.array(image)
+        # Try to open with PIL first
+        try:
+            image = Image.open(uploaded_file)
+            image_array = np.array(image)
+        except Exception as pil_error:
+            # If PIL fails, try reading with OpenCV as fallback
+            uploaded_file.seek(0)  # Reset file pointer
+            file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
+            image_array = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
+            
+            if image_array is None:
+                raise ValueError("Could not decode image file. The file may be corrupted or in an unsupported format.")
+            
+            # Convert BGR to RGB for display
+            image_array = cv2.cvtColor(image_array, cv2.COLOR_BGR2RGB)
+            # Convert numpy array to PIL Image for display
+            image = Image.fromarray(image_array)
         
         # Handle different image formats
         if len(image_array.shape) == 3:
@@ -279,9 +300,10 @@ if uploaded_file is not None:
                 image_array = image_array[:, :, 0]
         # If already 2D (grayscale), keep as is
         
-        # Display original image
+        # Display original image in a compact size
         st.markdown("### Original Image")
-        st.image(image, use_container_width=True, caption=f"Uploaded MRI Scan | Size: {image.size[0]}×{image.size[1]} pixels | Format: {image.format}")
+        # Display image at fixed width (400px) for better layout
+        st.image(image, width=400, caption=f"Uploaded MRI Scan | Size: {image.size[0]}×{image.size[1]} pixels | Format: {image.format}")
         
         # Preprocessing visualization in expander
         with st.expander("🔍 View Preprocessing Steps", expanded=False):
@@ -377,6 +399,16 @@ if uploaded_file is not None:
         predicted_class = CLASS_NAMES[predicted_idx]
         confidence = probabilities[predicted_idx]
         
+        # Detect out-of-distribution images
+        # Calculate entropy to detect if probabilities are too evenly distributed
+        entropy = -np.sum(probabilities * np.log(probabilities + 1e-10))
+        max_entropy = np.log(len(CLASS_NAMES))  # Maximum entropy for uniform distribution
+        entropy_ratio = entropy / max_entropy
+        
+        # Flag for potential out-of-distribution
+        # High entropy (close to uniform) or very low confidence suggests OOD
+        is_potentially_ood = entropy_ratio > 0.85 or confidence < 0.4
+        
         # Display results
         col1, col2 = st.columns([1, 1])
         
@@ -395,7 +427,25 @@ if uploaded_file is not None:
             st.markdown("#### Prediction")
             
             # Display prediction with confidence
-            if confidence >= 0.9:
+            if is_potentially_ood:
+                st.error(f"**{predicted_class}** (Uncertain)")
+                st.error("""
+                **⚠️ Out-of-Distribution Warning**
+                
+                The model's prediction is highly uncertain. This image may:
+                - Not belong to any of the 4 trained categories
+                - Be a different type of medical image (not a brain MRI)
+                - Be corrupted or of poor quality
+                
+                **The model was only trained on:**
+                - No Tumor
+                - Glioma
+                - Meningioma
+                - Pituitary Tumor
+                
+                **Recommendation:** Verify that this is a brain MRI scan. If the image is from a different category or modality, the prediction may not be reliable.
+                """)
+            elif confidence >= 0.9:
                 st.success(f"**{predicted_class}**")
             elif confidence >= 0.7:
                 st.info(f"**{predicted_class}**")
@@ -409,8 +459,8 @@ if uploaded_file is not None:
             with col_metric2:
                 st.metric("Inference Time", f"{inference_time:.2f}s")
             
-            # Warning for low confidence
-            if confidence < 0.7:
+            # Warning for low confidence (but not OOD)
+            if confidence < 0.7 and not is_potentially_ood:
                 st.markdown("""
                 <div class="warning-box">
                     <strong>Low Confidence Prediction</strong><br>
@@ -448,6 +498,22 @@ if uploaded_file is not None:
         plt.tight_layout()
         st.pyplot(fig)
     
+    except UnidentifiedImageError as e:
+        st.error("**Image Format Error**")
+        st.warning(f"""
+        The uploaded file '{uploaded_file.name}' could not be identified as a valid image file.
+        
+        **Possible causes:**
+        - File is corrupted or incomplete
+        - File extension doesn't match the actual format
+        - Unsupported image format
+        
+        **Please try:**
+        - Re-uploading the image file
+        - Converting the image to PNG or JPEG format
+        - Checking if the file is not corrupted
+        """)
+        st.exception(e)
     except Exception as e:
         st.error(f"Error processing image: {str(e)}")
         st.exception(e)
