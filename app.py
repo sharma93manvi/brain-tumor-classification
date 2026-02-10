@@ -154,7 +154,26 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Title and header with medical professional styling
-st.markdown('<h1 class="main-header">🧠 Brain Tumor Classification System</h1>', unsafe_allow_html=True)
+col_title, col_toggle = st.columns([11, 1])
+with col_title:
+    st.markdown('<h1 class="main-header">🧠 Brain Tumor Classification System</h1>', unsafe_allow_html=True)
+with col_toggle:
+    # Sidebar toggle button using JavaScript
+    if st.button("☰", help="Toggle sidebar", key="sidebar_toggle", use_container_width=True):
+        st.markdown("""
+        <script>
+        // Find and click the Streamlit sidebar toggle button
+        const sidebarToggle = document.querySelector('button[kind="header"]');
+        if (sidebarToggle) {
+            sidebarToggle.click();
+        } else {
+            // Alternative: try to find the collapse button
+            const collapseBtn = document.querySelector('[data-testid="collapsedControl"]');
+            if (collapseBtn) collapseBtn.click();
+        }
+        </script>
+        """, unsafe_allow_html=True)
+
 st.markdown("""
 <div class="subtitle">
     AI-Powered Clinical Decision Support Tool for MRI Analysis
