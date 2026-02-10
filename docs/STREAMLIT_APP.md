@@ -6,7 +6,7 @@ The Streamlit web application provides an interactive interface for brain tumor 
 
 ## Features
 
-- **Multiple Model Support**: Choose between EfficientNet-B3 Fine-Tuned (97.20% accuracy), EfficientNet-B3 Feature Extraction (91.34%), or ResNet50 Feature Extraction (91.34%)
+- **Multiple Model Support**: Choose between EfficientNet-B3 Fine-Tuned (97.64% accuracy), EfficientNet-B3 Feature Extraction (91.34%), or ResNet50 Feature Extraction (91.34%)
 - **Real-time Preprocessing Visualization**: See brain contour cropping and CLAHE enhancement steps
 - **Detailed Predictions**: View class probabilities, confidence scores, and probability distributions
 - **User-Friendly Interface**: Clean, intuitive design with clear visualizations
@@ -45,7 +45,7 @@ streamlit run app.py --server.port 8501
 1. **Upload Image**: Click the upload area and select a brain MRI scan (PNG, JPG, or JPEG)
 
 2. **Select Model**: Choose your preferred model from the sidebar:
-   - **EfficientNet-B3 Fine-Tuned**: Best accuracy (97.20%)
+   - **EfficientNet-B3 Fine-Tuned**: Best accuracy (97.64%)
    - **EfficientNet-B3 Feature Extraction**: Fast inference (91.34%)
    - **ResNet50 Feature Extraction**: Alternative approach (91.34%)
 

@@ -28,7 +28,7 @@ The system leverages pretrained deep learning models (ResNet50 and EfficientNet-
 | Baseline | Manual Features | 68.59% | 0.69 |
 | ResNet50 | Feature Extraction | 91.34% | 0.91 |
 | EfficientNet-B3 | Feature Extraction | **91.34%** | **0.91** |
-| EfficientNet-B3 | Fine-Tuning | **97.20%** | **0.97** |
+| EfficientNet-B3 | Fine-Tuning | **97.64%** | **0.98** |
 
 ## Quick Start
 
@@ -122,9 +122,9 @@ brain-tumor-classification/
 ## Results
 
 The EfficientNet-B3 fine-tuned model achieves:
-- **97.20% accuracy** on test set
-- **+28.61% improvement** over baseline manual features (68.59%)
-- **+5.86% improvement** over feature extraction approach (91.34%)
+- **97.64% accuracy** on test set
+- **+29.05% improvement** over baseline manual features (68.59%)
+- **+6.30% improvement** over feature extraction approach (91.34%)
 - **Excellent performance** across all tumor classes
 
 ## Technologies

@@ -321,7 +321,7 @@ resnet_available = (os.path.exists('models/model_resnet.pkl') or os.path.exists(
 # Build model options list
 model_options = []
 if fine_tuned_available:
-    model_options.append("EfficientNet-B3 Fine-Tuned (Best - 97.20%)")
+    model_options.append("EfficientNet-B3 Fine-Tuned (Best - 97.64%)")
 if effnet_available:
     model_options.append("EfficientNet-B3 Feature Extraction (91.34%)")
 if resnet_available:
@@ -1037,8 +1037,8 @@ else:
         **Fine-Tuned EfficientNet-B3** (Recommended)
         
         **Performance:**
-        - Accuracy: 97.20%
-        - F1-Score: 0.972
+        - Accuracy: 97.64%
+        - F1-Score: 0.98
         
         **Best for:**
         - Clinical decision-making
