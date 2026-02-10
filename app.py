@@ -163,48 +163,56 @@ with col_toggle:
     components.html("""
     <style>
         .sidebar-toggle-btn {
-            background-color: #0066cc;
-            color: white;
+            background-color: transparent;
+            color: #6c757d;
             border: none;
             padding: 8px 12px;
             border-radius: 4px;
             cursor: pointer;
             font-size: 18px;
             width: 100%;
+            transition: color 0.3s ease, background-color 0.3s ease;
         }
         .sidebar-toggle-btn:hover {
-            background-color: #004499;
+            color: #495057;
+            background-color: rgba(108, 117, 125, 0.1);
+        }
+        .sidebar-toggle-btn:active {
+            color: #343a40;
+            background-color: rgba(108, 117, 125, 0.2);
         }
     </style>
-    <button class="sidebar-toggle-btn" onclick="toggleSidebar()">☰</button>
+    <button class="sidebar-toggle-btn" id="sidebarToggleBtn">☰</button>
     <script>
-        function toggleSidebar() {
-            // Try multiple selectors to find the sidebar toggle button
-            const selectors = [
-                'button[kind="header"]',
-                '[data-testid="collapsedControl"]',
-                'button[aria-label*="sidebar"]',
-                '.css-1d391kg button',
-                'header button'
-            ];
-            
-            for (let selector of selectors) {
-                const btn = document.querySelector(selector);
-                if (btn) {
-                    btn.click();
-                    return;
-                }
+        (function() {
+            const btn = document.getElementById('sidebarToggleBtn');
+            if (btn) {
+                btn.addEventListener('click', function() {
+                    // Wait for Streamlit to fully load
+                    setTimeout(function() {
+                        // Try to find the Streamlit sidebar collapse button
+                        const streamlitApp = window.parent || window;
+                        const sidebarToggle = streamlitApp.document.querySelector('[data-testid="collapsedControl"]') ||
+                                            streamlitApp.document.querySelector('button[kind="header"]') ||
+                                            streamlitApp.document.querySelector('header button') ||
+                                            streamlitApp.document.querySelector('[aria-label*="sidebar"]');
+                        
+                        if (sidebarToggle) {
+                            sidebarToggle.click();
+                        } else {
+                            // Try to find by class
+                            const buttons = streamlitApp.document.querySelectorAll('button');
+                            for (let b of buttons) {
+                                if (b.getAttribute('aria-label') && b.getAttribute('aria-label').toLowerCase().includes('sidebar')) {
+                                    b.click();
+                                    break;
+                                }
+                            }
+                        }
+                    }, 100);
+                });
             }
-            
-            // Fallback: try to toggle via keyboard event
-            const event = new KeyboardEvent('keydown', {
-                key: 's',
-                ctrlKey: true,
-                shiftKey: true,
-                bubbles: true
-            });
-            document.dispatchEvent(event);
-        }
+        })();
     </script>
     """, height=40)
 
