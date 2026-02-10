@@ -38,22 +38,33 @@ def ensure_lfs_files():
     if missing_files:
         # Try to pull Git LFS files
         try:
+            # First, try to initialize Git LFS if not already done
+            subprocess.run(['git', 'lfs', 'install'], capture_output=True, timeout=10)
+            
+            # Then pull LFS files
             result = subprocess.run(
                 ['git', 'lfs', 'pull'],
                 capture_output=True,
                 text=True,
-                timeout=60
+                timeout=120,
+                cwd=os.path.dirname(__file__) if '__file__' in globals() else '.'
             )
             if result.returncode == 0:
                 st.info("Git LFS files pulled successfully")
-        except (subprocess.TimeoutExpired, FileNotFoundError, Exception) as e:
-            # Git LFS might not be available or files already there
-            pass
+            else:
+                st.warning(f"Git LFS pull may have failed. Check logs: {result.stderr[:200] if result.stderr else 'No error message'}")
+        except FileNotFoundError:
+            st.warning("Git LFS not found. Models may not be available. Please ensure Git LFS is installed on Streamlit Cloud.")
+        except (subprocess.TimeoutExpired, Exception) as e:
+            st.warning(f"Could not pull Git LFS files: {str(e)[:200]}")
     
     return True
 
-# Run on startup
-ensure_lfs_files()
+# Run on startup (only show warnings, don't block)
+try:
+    ensure_lfs_files()
+except Exception:
+    pass  # Fail silently to not break the app
 
 # Add src to path
 src_path = os.path.join(os.path.dirname(__file__), 'src')
