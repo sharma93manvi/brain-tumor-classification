@@ -17,13 +17,25 @@ class ImagePreprocessor:
         Remove black background and focus on brain region only.
         
         Args:
-            image_array: numpy array (H, W, 3) RGB image
+            image_array: numpy array (H, W, 3) RGB image or (H, W) grayscale image
             
         Returns:
-            Cropped image array
+            Cropped image array (same format as input)
         """
-        # Convert to grayscale and blur slightly to remove noise
-        gray = cv2.cvtColor(image_array, cv2.COLOR_RGB2GRAY)
+        # Handle grayscale vs RGB images
+        if len(image_array.shape) == 2:
+            # Already grayscale
+            gray = image_array.copy()
+            is_grayscale = True
+        elif len(image_array.shape) == 3:
+            # RGB image - convert to grayscale
+            gray = cv2.cvtColor(image_array, cv2.COLOR_RGB2GRAY)
+            is_grayscale = False
+        else:
+            # Unexpected format, return original
+            return image_array
+        
+        # Blur slightly to remove noise
         gray = cv2.GaussianBlur(gray, (5, 5), 0)
         
         # Threshold the image
@@ -57,24 +69,38 @@ class ImagePreprocessor:
         Apply Contrast-Limited Adaptive Histogram Equalization (CLAHE).
         
         Args:
-            image_array: numpy array (H, W, 3) RGB image
+            image_array: numpy array (H, W, 3) RGB image or (H, W) grayscale image
             
         Returns:
-            Enhanced image array
+            Enhanced image array (RGB format)
         """
-        # Convert to LAB color space
-        lab = cv2.cvtColor(image_array, cv2.COLOR_RGB2LAB)
-        l, a, b = cv2.split(lab)
-        
-        # Apply CLAHE to L channel
-        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
-        l_enhanced = clahe.apply(l)
-        
-        # Merge channels
-        lab_enhanced = cv2.merge([l_enhanced, a, b])
-        
-        # Convert back to RGB
-        enhanced = cv2.cvtColor(lab_enhanced, cv2.COLOR_LAB2RGB)
+        # Handle grayscale vs RGB images
+        if len(image_array.shape) == 2:
+            # Grayscale image - apply CLAHE directly
+            clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+            enhanced = clahe.apply(image_array)
+            # Convert to RGB for consistency
+            enhanced = cv2.cvtColor(enhanced, cv2.COLOR_GRAY2RGB)
+        elif len(image_array.shape) == 3:
+            # RGB image - apply CLAHE to L channel in LAB space
+            lab = cv2.cvtColor(image_array, cv2.COLOR_RGB2LAB)
+            l, a, b = cv2.split(lab)
+            
+            # Apply CLAHE to L channel
+            clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+            l_enhanced = clahe.apply(l)
+            
+            # Merge channels
+            lab_enhanced = cv2.merge([l_enhanced, a, b])
+            
+            # Convert back to RGB
+            enhanced = cv2.cvtColor(lab_enhanced, cv2.COLOR_LAB2RGB)
+        else:
+            # Unexpected format, return original (converted to RGB if needed)
+            if len(image_array.shape) == 2:
+                enhanced = cv2.cvtColor(image_array, cv2.COLOR_GRAY2RGB)
+            else:
+                enhanced = image_array
         
         return enhanced
 

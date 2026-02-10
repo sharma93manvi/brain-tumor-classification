@@ -12,6 +12,7 @@ import cv2
 from PIL import Image
 import os
 import sys
+import time
 
 # Add src to path
 src_path = os.path.join(os.path.dirname(__file__), 'src')
@@ -78,13 +79,13 @@ st.sidebar.markdown("---")
 
 # Check which models are available
 fine_tuned_available = os.path.exists('models/efficientnet_b3_finetuned.pth')
-effnet_available = os.path.exists('models/model_effnet.pkl') and os.path.exists('models/scaler_effnet.pkl')
-resnet_available = os.path.exists('models/model_resnet.pkl') and os.path.exists('models/scaler_resnet.pkl')
+effnet_available = (os.path.exists('models/model_effnet.pkl') or os.path.exists('models/brain_tumor_classifier_efficientnet_b3.pkl')) and (os.path.exists('models/scaler_effnet.pkl') or os.path.exists('models/scaler_efficientnet_b3.pkl'))
+resnet_available = (os.path.exists('models/model_resnet.pkl') or os.path.exists('models/brain_tumor_classifier_resnet50.pkl')) and (os.path.exists('models/scaler_resnet.pkl') or os.path.exists('models/scaler_resnet50.pkl'))
 
 # Build model options list
 model_options = []
 if fine_tuned_available:
-    model_options.append("EfficientNet-B3 Fine-Tuned (Best - 97.90%)")
+    model_options.append("EfficientNet-B3 Fine-Tuned (Best - 97.20%)")
 if effnet_available:
     model_options.append("EfficientNet-B3 Feature Extraction (91.34%)")
 if resnet_available:
@@ -101,31 +102,25 @@ model_type = st.sidebar.selectbox(
     help="Choose the model for classification. Fine-tuned model offers best accuracy."
 )
 
-# Show availability status
+# Confidence interpretation guide
 st.sidebar.markdown("---")
-st.sidebar.markdown("### Model Availability")
-if fine_tuned_available:
-    st.sidebar.success("Fine-Tuned: Available")
-else:
-    st.sidebar.warning("Fine-Tuned: Not available")
-if effnet_available:
-    st.sidebar.success("EfficientNet-B3 FE: Available")
-else:
-    st.sidebar.warning("EfficientNet-B3 FE: Not available")
-if resnet_available:
-    st.sidebar.success("ResNet50 FE: Available")
-else:
-    st.sidebar.warning("ResNet50 FE: Not available")
+st.sidebar.markdown("### Confidence Levels")
+st.sidebar.info("""
+**Understanding Model Confidence:**
 
-# Show model info
-st.sidebar.markdown("---")
-st.sidebar.markdown("### Model Information")
-if "Fine-Tuned" in model_type:
-    st.sidebar.info("**Best Performance**\n\n- Accuracy: 97.90%\n- Method: End-to-end fine-tuning\n- All layers trainable")
-elif "EfficientNet-B3" in model_type:
-    st.sidebar.info("**Feature Extraction**\n\n- Accuracy: 91.34%\n- Method: Frozen encoder + LR\n- Fast inference")
-else:
-    st.sidebar.info("**Feature Extraction**\n\n- Accuracy: 91.34%\n- Method: Frozen encoder + LR\n- Fast inference")
+- **≥90%**: High confidence
+  - Model is very certain about prediction
+  - Still requires professional verification
+
+- **70-90%**: Moderate confidence
+  - Model is reasonably certain
+  - Professional consultation recommended
+
+- **<70%**: Low confidence
+  - Model is uncertain
+  - **Consult medical professional**
+  - May indicate ambiguous image or edge case
+""")
 
 st.sidebar.markdown("---")
 st.sidebar.markdown("### About")
@@ -181,11 +176,21 @@ def load_feature_extraction_model(model_name):
         
         # Load classifier and scaler
         if model_name == 'efficientnet':
-            classifier_path = 'models/model_effnet.pkl'
-            scaler_path = 'models/scaler_effnet.pkl'
+            # Try new naming first, fallback to old naming
+            if os.path.exists('models/brain_tumor_classifier_efficientnet_b3.pkl'):
+                classifier_path = 'models/brain_tumor_classifier_efficientnet_b3.pkl'
+                scaler_path = 'models/scaler_efficientnet_b3.pkl'
+            else:
+                classifier_path = 'models/model_effnet.pkl'
+                scaler_path = 'models/scaler_effnet.pkl'
         else:  # resnet50
-            classifier_path = 'models/model_resnet.pkl'
-            scaler_path = 'models/scaler_resnet.pkl'
+            # Try new naming first, fallback to old naming
+            if os.path.exists('models/brain_tumor_classifier_resnet50.pkl'):
+                classifier_path = 'models/brain_tumor_classifier_resnet50.pkl'
+                scaler_path = 'models/scaler_resnet50.pkl'
+            else:
+                classifier_path = 'models/model_resnet.pkl'
+                scaler_path = 'models/scaler_resnet.pkl'
         
         if os.path.exists(classifier_path) and os.path.exists(scaler_path):
             classifier = joblib.load(classifier_path)
@@ -275,16 +280,11 @@ if uploaded_file is not None:
         # If already 2D (grayscale), keep as is
         
         # Display original image
-        col1, col2 = st.columns([1, 1])
+        st.markdown("### Original Image")
+        st.image(image, use_container_width=True, caption=f"Uploaded MRI Scan | Size: {image.size[0]}×{image.size[1]} pixels | Format: {image.format}")
         
-        with col1:
-            st.markdown("### Original Image")
-            st.image(image, use_container_width=True, caption="Uploaded MRI Scan")
-        
-        # Preprocessing visualization
-        with col2:
-            st.markdown("### Preprocessing Steps")
-            
+        # Preprocessing visualization in expander
+        with st.expander("🔍 View Preprocessing Steps", expanded=False):
             try:
                 preprocessor = ImagePreprocessor()
                 cropped = preprocessor.crop_brain_contour(image_array)
@@ -301,12 +301,18 @@ if uploaded_file is not None:
                 else:
                     raise
             
-            st.image(cropped, caption="1. Brain Contour Cropping", use_container_width=True)
-            st.image(enhanced, caption="2. CLAHE Enhancement", use_container_width=True)
+            col1, col2 = st.columns(2)
+            with col1:
+                st.image(cropped, caption="1. Brain Contour Cropping", use_container_width=True)
+            with col2:
+                st.image(enhanced, caption="2. CLAHE Enhancement", use_container_width=True)
         
         # Make prediction
         st.markdown("---")
         st.markdown("### Prediction Results")
+        
+        # Start timing
+        start_time = time.time()
         
         with st.spinner("Loading model and making prediction..."):
             if "Fine-Tuned" in model_type:
@@ -338,8 +344,8 @@ if uploaded_file is not None:
                     st.error("**EfficientNet-B3 Model Not Available**")
                     st.warning("""
                     Model files not found. Please ensure these files exist:
-                    - `models/model_effnet.pkl`
-                    - `models/scaler_effnet.pkl`
+                    - `models/brain_tumor_classifier_efficientnet_b3.pkl` or `models/model_effnet.pkl`
+                    - `models/scaler_efficientnet_b3.pkl` or `models/scaler_effnet.pkl`
                     
                     **To generate these files:**
                     Run the training cells in `notebooks/brain_tumor_classification.ipynb`
@@ -355,24 +361,27 @@ if uploaded_file is not None:
                     st.error("**ResNet50 Model Not Available**")
                     st.warning("""
                     Model files not found. Please ensure these files exist:
-                    - `models/model_resnet.pkl`
-                    - `models/scaler_resnet.pkl`
+                    - `models/brain_tumor_classifier_resnet50.pkl` or `models/model_resnet.pkl`
+                    - `models/scaler_resnet50.pkl` or `models/scaler_resnet.pkl`
                     
                     **To generate these files:**
                     Run the training cells in `notebooks/brain_tumor_classification.ipynb`
                     """)
                     st.stop()
         
+        # Calculate inference time
+        inference_time = time.time() - start_time
+        
+        # Find predicted class
+        predicted_idx = np.argmax(probabilities)
+        predicted_class = CLASS_NAMES[predicted_idx]
+        confidence = probabilities[predicted_idx]
+        
         # Display results
         col1, col2 = st.columns([1, 1])
         
         with col1:
             st.markdown("#### Class Probabilities")
-            
-            # Find predicted class
-            predicted_idx = np.argmax(probabilities)
-            predicted_class = CLASS_NAMES[predicted_idx]
-            confidence = probabilities[predicted_idx]
             
             # Display probabilities with progress bars
             for i, (cls, prob) in enumerate(zip(CLASS_NAMES, probabilities)):
@@ -391,7 +400,12 @@ if uploaded_file is not None:
             else:
                 st.warning(f"**{predicted_class}**")
             
-            st.metric("Confidence", f"{confidence*100:.2f}%")
+            # Display metrics
+            col_metric1, col_metric2 = st.columns(2)
+            with col_metric1:
+                st.metric("Confidence", f"{confidence*100:.2f}%")
+            with col_metric2:
+                st.metric("Inference Time", f"{inference_time:.2f}s")
             
             # Warning for low confidence
             if confidence < 0.7:
@@ -402,12 +416,13 @@ if uploaded_file is not None:
                 </div>
                 """, unsafe_allow_html=True)
             
-            # Additional info
-            st.markdown("---")
-            st.markdown("**Top 2 Predictions:**")
+            # Additional info - only show if second prediction is close
             top2_indices = np.argsort(probabilities)[-2:][::-1]
-            for idx in top2_indices:
-                st.markdown(f"- {CLASS_NAMES[idx]}: {probabilities[idx]*100:.2f}%")
+            if probabilities[top2_indices[1]] > 0.15:  # Show if second prediction is >15%
+                st.markdown("---")
+                st.markdown("**Top 2 Predictions:**")
+                for idx in top2_indices:
+                    st.markdown(f"- {CLASS_NAMES[idx]}: {probabilities[idx]*100:.2f}%")
         
         # Visualization
         st.markdown("---")
@@ -430,33 +445,6 @@ if uploaded_file is not None:
         
         plt.tight_layout()
         st.pyplot(fig)
-        
-        # Model performance info
-        st.markdown("---")
-        st.markdown("### Model Information")
-        
-        if "Fine-Tuned" in model_type:
-            st.info("""
-            **EfficientNet-B3 Fine-Tuned Model**
-            - Test Accuracy: 97.90%
-            - Method: End-to-end training with 10 epochs
-            - All layers trainable
-            - Best performing model
-            """)
-        elif "EfficientNet-B3" in model_type:
-            st.info("""
-            **EfficientNet-B3 Feature Extraction**
-            - Test Accuracy: 91.34%
-            - Method: Frozen encoder + Logistic Regression
-            - Fast inference time
-            """)
-        else:
-            st.info("""
-            **ResNet50 Feature Extraction**
-            - Test Accuracy: 91.34%
-            - Method: Frozen encoder + Logistic Regression
-            - Fast inference time
-            """)
     
     except Exception as e:
         st.error(f"Error processing image: {str(e)}")
@@ -480,9 +468,7 @@ else:
     with col2:
         st.markdown("""
         #### 2. Select Model
-        Choose your preferred model from the sidebar:
-        - **Fine-Tuned**: Best accuracy (97.90%)
-        - **Feature Extraction**: Faster inference
+        Choose your preferred model from the sidebar dropdown menu.
         """)
     
     with col3:
@@ -490,6 +476,62 @@ else:
         #### 3. View Results
         See preprocessing steps, class probabilities, and the final prediction with confidence scores
         """)
+    
+    st.markdown("---")
+    st.markdown("### Model Comparison")
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.markdown("""
+        **Fine-Tuned EfficientNet-B3** (Recommended)
+        
+        **Performance:**
+        - Accuracy: 97.20%
+        - F1-Score: 0.972
+        
+        **Best for:**
+        - Clinical decision-making
+        - Highest accuracy required
+        """)
+        if fine_tuned_available:
+            st.success("Available")
+        else:
+            st.warning("Not available")
+    
+    with col2:
+        st.markdown("""
+        **EfficientNet-B3 Feature Extraction**
+        
+        **Performance:**
+        - Accuracy: 91.34%
+        - F1-Score: 0.913
+        
+        **Best for:**
+        - Fast inference
+        - Resource-constrained environments
+        """)
+        if effnet_available:
+            st.success("Available")
+        else:
+            st.warning("Not available")
+    
+    with col3:
+        st.markdown("""
+        **ResNet50 Feature Extraction**
+        
+        **Performance:**
+        - Accuracy: 91.34%
+        - F1-Score: 0.913
+        
+        **Best for:**
+        - Baseline comparison
+        - Fast inference
+        """)
+        if resnet_available:
+            st.success("Available")
+        else:
+            st.warning("Not available")
     
     st.markdown("---")
     st.markdown("### Classification Classes")

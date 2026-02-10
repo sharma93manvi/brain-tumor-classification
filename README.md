@@ -19,15 +19,16 @@ The system leverages pretrained deep learning models (ResNet50 and EfficientNet-
 - **Multiple Architectures**: ResNet50 and EfficientNet-B3 implementations
 - **Fine-Tuning Support**: End-to-end training with epochs
 - **Robust Evaluation**: Cross-validation and comprehensive metrics
+- **Web Application**: Interactive Streamlit app for easy model inference
 
 ## Performance
 
 | Model | Approach | Accuracy | F1-Score (Macro) |
 |-------|----------|----------|------------------|
-| Baseline | Manual Features | 70.25% | 0.70 |
-| ResNet50 | Feature Extraction | 90.90% | 0.91 |
-| EfficientNet-B3 | Feature Extraction | **91.60%** | **0.91** |
-| EfficientNet-B3 | Fine-Tuning | (See results) | (See results) |
+| Baseline | Manual Features | 68.59% | 0.69 |
+| ResNet50 | Feature Extraction | 91.34% | 0.91 |
+| EfficientNet-B3 | Feature Extraction | **91.34%** | **0.91** |
+| EfficientNet-B3 | Fine-Tuning | **97.20%** | **0.97** |
 
 ## Quick Start
 
@@ -50,6 +51,23 @@ pip install -r requirements.txt
 
 ### Usage
 
+#### Option 1: Web Application (Recommended)
+
+Run the Streamlit web app for interactive predictions:
+
+```bash
+streamlit run app.py
+```
+
+Or use the provided script:
+```bash
+./scripts/run_app.sh
+```
+
+Then open your browser to `http://localhost:8501`
+
+#### Option 2: Jupyter Notebook
+
 1. **Data Preparation**: Place your MRI images in the `data/` directory
 2. **Run Notebook**: Open `notebooks/brain_tumor_classification.ipynb`
 3. **Train Models**: Follow the notebook cells to train and evaluate models
@@ -59,12 +77,21 @@ pip install -r requirements.txt
 
 ```
 brain-tumor-classification/
-├── notebooks/          # Jupyter notebooks for analysis
+├── app.py             # Streamlit web application
+├── notebooks/         # Jupyter notebooks for analysis
 ├── models/            # Saved model files
 ├── data/              # Dataset (not included in repo)
 ├── src/               # Source code modules
+│   ├── preprocessing.py      # Medical image preprocessing
+│   └── feature_extractor.py  # Feature extraction classes
 ├── docs/              # Documentation
+│   ├── INSTALLATION.md
+│   ├── USAGE.md
+│   └── STREAMLIT_APP.md
 ├── scripts/           # Utility scripts
+│   ├── setup_git.sh
+│   └── run_app.sh
+├── .streamlit/        # Streamlit configuration
 ├── requirements.txt   # Python dependencies
 └── README.md         # This file
 ```
@@ -85,9 +112,10 @@ brain-tumor-classification/
 
 ## Results
 
-The EfficientNet-B3 feature extraction approach achieves:
-- **91.60% accuracy** on test set
-- **+21.35% improvement** over baseline manual features
+The EfficientNet-B3 fine-tuned model achieves:
+- **97.20% accuracy** on test set
+- **+28.61% improvement** over baseline manual features (68.59%)
+- **+5.86% improvement** over feature extraction approach (91.34%)
 - **Excellent performance** across all tumor classes
 
 ## Technologies
@@ -97,6 +125,18 @@ The EfficientNet-B3 feature extraction approach achieves:
 - **OpenCV**: Image preprocessing
 - **NumPy/Pandas**: Data manipulation
 - **Matplotlib/Seaborn**: Visualization
+- **Streamlit**: Web application framework
+
+## Web Application
+
+The project includes a Streamlit web application (`app.py`) that provides:
+
+- **Interactive Interface**: Upload MRI images and get instant predictions
+- **Multiple Models**: Choose between fine-tuned or feature extraction approaches
+- **Visualization**: See preprocessing steps and probability distributions
+- **User-Friendly**: Clean, intuitive design for non-technical users
+
+For detailed information, see [Streamlit App Documentation](docs/STREAMLIT_APP.md)
 
 ## Citation
 
