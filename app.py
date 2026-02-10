@@ -15,56 +15,38 @@ import os
 import sys
 import time
 import subprocess
+import requests
+from pathlib import Path
 
-# Ensure Git LFS files are pulled (for Streamlit Cloud deployment)
+# Download model files from GitHub if not available locally (for Streamlit Cloud)
 @st.cache_resource
-def ensure_lfs_files():
-    """Ensure Git LFS files are downloaded on Streamlit Cloud"""
-    models_dir = 'models'
-    if not os.path.exists(models_dir):
-        os.makedirs(models_dir, exist_ok=True)
+def download_model_if_missing(filepath, github_url=None):
+    """Download model file from GitHub if it doesn't exist locally"""
+    if os.path.exists(filepath):
+        return True
     
-    # Check if we're on Streamlit Cloud and files are missing
-    model_files = [
-        'models/efficientnet_b3_finetuned.pth',
-        'models/brain_tumor_classifier_efficientnet_b3.pkl',
-        'models/brain_tumor_classifier_resnet50.pkl',
-        'models/scaler_efficientnet_b3.pkl',
-        'models/scaler_resnet50.pkl'
-    ]
-    
-    missing_files = [f for f in model_files if not os.path.exists(f)]
-    
-    if missing_files:
-        # Try to pull Git LFS files
+    # If GitHub URL provided, download from there
+    if github_url:
         try:
-            # First, try to initialize Git LFS if not already done
-            subprocess.run(['git', 'lfs', 'install'], capture_output=True, timeout=10)
-            
-            # Then pull LFS files
-            result = subprocess.run(
-                ['git', 'lfs', 'pull'],
-                capture_output=True,
-                text=True,
-                timeout=120,
-                cwd=os.path.dirname(__file__) if '__file__' in globals() else '.'
-            )
-            if result.returncode == 0:
-                st.info("Git LFS files pulled successfully")
-            else:
-                st.warning(f"Git LFS pull may have failed. Check logs: {result.stderr[:200] if result.stderr else 'No error message'}")
-        except FileNotFoundError:
-            st.warning("Git LFS not found. Models may not be available. Please ensure Git LFS is installed on Streamlit Cloud.")
-        except (subprocess.TimeoutExpired, Exception) as e:
-            st.warning(f"Could not pull Git LFS files: {str(e)[:200]}")
+            os.makedirs(os.path.dirname(filepath), exist_ok=True)
+            response = requests.get(github_url, stream=True, timeout=300)
+            if response.status_code == 200:
+                with open(filepath, 'wb') as f:
+                    for chunk in response.iter_content(chunk_size=8192):
+                        f.write(chunk)
+                return True
+        except Exception as e:
+            st.warning(f"Could not download {os.path.basename(filepath)}: {str(e)[:100]}")
     
-    return True
+    return False
 
-# Run on startup (only show warnings, don't block)
-try:
-    ensure_lfs_files()
-except Exception:
-    pass  # Fail silently to not break the app
+# Ensure models directory exists
+models_dir = 'models'
+if not os.path.exists(models_dir):
+    os.makedirs(models_dir, exist_ok=True)
+
+# Note: Models should be available via Git LFS or need to be hosted externally
+# For now, the app will work with whatever models are available locally
 
 # Add src to path
 src_path = os.path.join(os.path.dirname(__file__), 'src')
