@@ -102,6 +102,10 @@ st.markdown("""
         font-size: 1.1rem;
         margin-bottom: 2rem;
         font-weight: 300;
+        display: block;
+        width: 100%;
+        margin-left: auto;
+        margin-right: auto;
     }
     
     .prediction-box {
@@ -191,6 +195,9 @@ st.markdown("""
 col_title, col_toggle = st.columns([11, 1])
 with col_title:
     st.markdown('<h1 class="main-header">🧠 Brain Tumor Classification System</h1>', unsafe_allow_html=True)
+    st.markdown("""
+    <div class="subtitle">AI-Powered Clinical Decision Support Tool for MRI Analysis</div>
+    """, unsafe_allow_html=True)
 with col_toggle:
     # Sidebar toggle button using custom HTML component
     import streamlit.components.v1 as components
@@ -293,12 +300,6 @@ with col_toggle:
         })();
     </script>
     """, height=40)
-
-st.markdown("""
-<div class="subtitle">
-    AI-Powered Clinical Decision Support Tool for MRI Analysis
-</div>
-""", unsafe_allow_html=True)
 
 # Medical disclaimer banner
 st.markdown("""
