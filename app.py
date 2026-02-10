@@ -187,29 +187,73 @@ with col_toggle:
         (function() {
             const btn = document.getElementById('sidebarToggleBtn');
             if (btn) {
-                btn.addEventListener('click', function() {
-                    // Wait for Streamlit to fully load
-                    setTimeout(function() {
-                        // Try to find the Streamlit sidebar collapse button
-                        const streamlitApp = window.parent || window;
-                        const sidebarToggle = streamlitApp.document.querySelector('[data-testid="collapsedControl"]') ||
-                                            streamlitApp.document.querySelector('button[kind="header"]') ||
-                                            streamlitApp.document.querySelector('header button') ||
-                                            streamlitApp.document.querySelector('[aria-label*="sidebar"]');
-                        
-                        if (sidebarToggle) {
-                            sidebarToggle.click();
-                        } else {
-                            // Try to find by class
-                            const buttons = streamlitApp.document.querySelectorAll('button');
-                            for (let b of buttons) {
-                                if (b.getAttribute('aria-label') && b.getAttribute('aria-label').toLowerCase().includes('sidebar')) {
-                                    b.click();
-                                    break;
+                btn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    // Get the parent window (where Streamlit's UI actually lives)
+                    const parentWindow = window.parent;
+                    const parentDoc = parentWindow.document;
+                    
+                    // Try multiple methods to find and click the sidebar toggle
+                    const methods = [
+                        // Method 1: Direct selector for collapsed control
+                        () => {
+                            const toggle = parentDoc.querySelector('[data-testid="collapsedControl"]');
+                            if (toggle) { toggle.click(); return true; }
+                            return false;
+                        },
+                        // Method 2: Find button in header
+                        () => {
+                            const header = parentDoc.querySelector('header');
+                            if (header) {
+                                const buttons = header.querySelectorAll('button');
+                                for (let b of buttons) {
+                                    if (b.getAttribute('aria-label') && 
+                                        (b.getAttribute('aria-label').toLowerCase().includes('sidebar') ||
+                                         b.getAttribute('aria-label').toLowerCase().includes('menu'))) {
+                                        b.click();
+                                        return true;
+                                    }
                                 }
                             }
+                            return false;
+                        },
+                        // Method 3: Find first button in header (usually the toggle)
+                        () => {
+                            const header = parentDoc.querySelector('header');
+                            if (header) {
+                                const firstBtn = header.querySelector('button');
+                                if (firstBtn) {
+                                    firstBtn.click();
+                                    return true;
+                                }
+                            }
+                            return false;
+                        },
+                        // Method 4: Simulate keyboard shortcut
+                        () => {
+                            const event = new KeyboardEvent('keydown', {
+                                key: 's',
+                                code: 'KeyS',
+                                ctrlKey: true,
+                                shiftKey: true,
+                                bubbles: true,
+                                cancelable: true
+                            });
+                            parentDoc.dispatchEvent(event);
+                            return true;
                         }
-                    }, 100);
+                    ];
+                    
+                    // Try each method
+                    for (let method of methods) {
+                        try {
+                            if (method()) break;
+                        } catch (err) {
+                            console.log('Toggle method failed:', err);
+                        }
+                    }
                 });
             }
         })();
