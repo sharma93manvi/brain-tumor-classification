@@ -38,6 +38,7 @@ models/*.pt
 data/
 *.h5
 *.hdf5
+Google MRI downloads/
 
 # IDE
 .vscode/

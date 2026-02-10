@@ -709,10 +709,12 @@ if uploaded_file is not None:
                 image_array = image_array[:, :, 0]
         # If already 2D (grayscale), keep as is
         
-        # Display original image in a compact size
+        # Display original image centered with small size
         st.markdown("### Original Image")
-        # Display image at fixed width (400px) for better layout
-        st.image(image, width=400, caption=f"Uploaded MRI Scan | Size: {image.size[0]}×{image.size[1]} pixels | Format: {image.format}")
+        col_left, col_img, col_right = st.columns([1, 2, 1])
+        
+        with col_img:
+            st.image(image, width=400, caption=f"Uploaded MRI Scan | Size: {image.size[0]}×{image.size[1]} pixels | Format: {image.format}")
         
         # Preprocessing visualization in expander
         with st.expander("🔍 View Preprocessing Steps", expanded=False):
@@ -737,6 +739,11 @@ if uploaded_file is not None:
                 st.image(cropped, caption="1. Brain Contour Cropping", use_container_width=True)
             with col2:
                 st.image(enhanced, caption="2. CLAHE Enhancement", use_container_width=True)
+            
+            st.info("""
+            **Note:** Additional preprocessing steps (resize to 300×300, tensor conversion, and ImageNet normalization) 
+            are performed automatically before model inference but are not shown here for clarity.
+            """)
         
         # Make prediction
         st.markdown("---")
@@ -906,27 +913,25 @@ if uploaded_file is not None:
                 for idx in top2_indices:
                     st.markdown(f"- {CLASS_NAMES[idx]}: {probabilities[idx]*100:.2f}%")
         
-        # Visualization
-        st.markdown("---")
-        st.markdown("### Probability Distribution")
-        
-        import matplotlib.pyplot as plt
-        
-        fig, ax = plt.subplots(figsize=(10, 6))
-        colors = ['#2ecc71' if i == predicted_idx else '#95a5a6' for i in range(len(CLASS_NAMES))]
-        bars = ax.barh(CLASS_NAMES, probabilities, color=colors)
-        ax.set_xlabel("Probability", fontsize=12)
-        ax.set_title("Class Probability Distribution", fontsize=14, fontweight='bold')
-        ax.set_xlim(0, 1)
-        
-        # Add value labels on bars
-        for i, (bar, prob) in enumerate(zip(bars, probabilities)):
-            width = bar.get_width()
-            ax.text(width + 0.01, bar.get_y() + bar.get_height()/2, 
-                   f'{prob*100:.2f}%', ha='left', va='center', fontweight='bold')
-        
-        plt.tight_layout()
-        st.pyplot(fig)
+        # Visualization - Probability Distribution Chart (in expander for space efficiency)
+        with st.expander("View Probability Distribution Chart", expanded=False):
+            import matplotlib.pyplot as plt
+            
+            fig, ax = plt.subplots(figsize=(7, 4))  # Reduced from (10, 6) to (7, 4)
+            colors = ['#2ecc71' if i == predicted_idx else '#95a5a6' for i in range(len(CLASS_NAMES))]
+            bars = ax.barh(CLASS_NAMES, probabilities, color=colors)
+            ax.set_xlabel("Probability", fontsize=11)
+            ax.set_title("Class Probability Distribution", fontsize=12, fontweight='bold')
+            ax.set_xlim(0, 1)
+            
+            # Add value labels on bars
+            for i, (bar, prob) in enumerate(zip(bars, probabilities)):
+                width = bar.get_width()
+                ax.text(width + 0.01, bar.get_y() + bar.get_height()/2, 
+                       f'{prob*100:.2f}%', ha='left', va='center', fontsize=10, fontweight='bold')
+            
+            plt.tight_layout()
+            st.pyplot(fig, use_container_width=True)
         
         # Tumor Localization Visualization (Grad-CAM) - Only for Fine-Tuned model and tumor classes
         if "Fine-Tuned" in model_type and gradcam_heatmap is not None and not is_potentially_ood:
