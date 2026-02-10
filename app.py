@@ -138,14 +138,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Title and header with medical professional styling
-col_title, col_toggle = st.columns([10, 1])
-with col_title:
-    st.markdown('<h1 class="main-header">🧠 Brain Tumor Classification System</h1>', unsafe_allow_html=True)
-with col_toggle:
-    # Add button to help users access sidebar if hidden
-    if st.button("☰", help="Toggle sidebar", use_container_width=True):
-        st.rerun()
-
+st.markdown('<h1 class="main-header">🧠 Brain Tumor Classification System</h1>', unsafe_allow_html=True)
 st.markdown("""
 <div class="subtitle">
     AI-Powered Clinical Decision Support Tool for MRI Analysis
@@ -160,9 +153,6 @@ st.markdown("""
     All predictions should be verified by qualified radiologists and medical professionals.
 </div>
 """, unsafe_allow_html=True)
-
-# Help text for sidebar access
-st.info("💡 **Tip:** If the sidebar is hidden, look for the `>` arrow at the top-left edge of the page, or press `Ctrl+Shift+S` (Windows/Linux) or `Cmd+Shift+S` (Mac) to toggle it.")
 
 # Sidebar configuration
 st.sidebar.title("Configuration")
