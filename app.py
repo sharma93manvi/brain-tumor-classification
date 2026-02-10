@@ -386,7 +386,9 @@ if uploaded_file is not None:
             # Display probabilities with progress bars
             for i, (cls, prob) in enumerate(zip(CLASS_NAMES, probabilities)):
                 st.markdown(f"**{cls}**")
-                st.progress(prob, text=f"{prob*100:.2f}%")
+                # Convert numpy float32 to Python float for Streamlit progress bar
+                prob_float = float(prob)
+                st.progress(prob_float, text=f"{prob_float*100:.2f}%")
                 st.markdown("")
         
         with col2:
