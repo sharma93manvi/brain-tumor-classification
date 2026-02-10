@@ -31,8 +31,9 @@ ENV/
 *.ipynb_checkpoints
 
 # Models and Data
-models/*.pkl
-models/*.pth
+# Note: Model files are tracked with Git LFS, so they're not ignored
+# models/*.pkl  # Tracked with Git LFS
+# models/*.pth  # Tracked with Git LFS
 models/*.pt
 data/
 *.h5
