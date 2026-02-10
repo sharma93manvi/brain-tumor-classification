@@ -158,21 +158,55 @@ col_title, col_toggle = st.columns([11, 1])
 with col_title:
     st.markdown('<h1 class="main-header">🧠 Brain Tumor Classification System</h1>', unsafe_allow_html=True)
 with col_toggle:
-    # Sidebar toggle button using JavaScript
-    if st.button("☰", help="Toggle sidebar", key="sidebar_toggle", use_container_width=True):
-        st.markdown("""
-        <script>
-        // Find and click the Streamlit sidebar toggle button
-        const sidebarToggle = document.querySelector('button[kind="header"]');
-        if (sidebarToggle) {
-            sidebarToggle.click();
-        } else {
-            // Alternative: try to find the collapse button
-            const collapseBtn = document.querySelector('[data-testid="collapsedControl"]');
-            if (collapseBtn) collapseBtn.click();
+    # Sidebar toggle button using custom HTML component
+    import streamlit.components.v1 as components
+    components.html("""
+    <style>
+        .sidebar-toggle-btn {
+            background-color: #0066cc;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 18px;
+            width: 100%;
         }
-        </script>
-        """, unsafe_allow_html=True)
+        .sidebar-toggle-btn:hover {
+            background-color: #004499;
+        }
+    </style>
+    <button class="sidebar-toggle-btn" onclick="toggleSidebar()">☰</button>
+    <script>
+        function toggleSidebar() {
+            // Try multiple selectors to find the sidebar toggle button
+            const selectors = [
+                'button[kind="header"]',
+                '[data-testid="collapsedControl"]',
+                'button[aria-label*="sidebar"]',
+                '.css-1d391kg button',
+                'header button'
+            ];
+            
+            for (let selector of selectors) {
+                const btn = document.querySelector(selector);
+                if (btn) {
+                    btn.click();
+                    return;
+                }
+            }
+            
+            // Fallback: try to toggle via keyboard event
+            const event = new KeyboardEvent('keydown', {
+                key: 's',
+                ctrlKey: true,
+                shiftKey: true,
+                bubbles: true
+            });
+            document.dispatchEvent(event);
+        }
+    </script>
+    """, height=40)
 
 st.markdown("""
 <div class="subtitle">
