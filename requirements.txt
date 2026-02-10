@@ -6,17 +6,17 @@ pandas>=2.0.0
 scikit-learn>=1.3.0
 
 # Image Processing
-opencv-python>=4.8.0
+opencv-python-headless>=4.8.0  # Headless version for Streamlit Cloud deployment
 Pillow>=10.0.0
 
 # Visualization
 matplotlib>=3.7.0
 seaborn>=0.12.0
 
-# Jupyter
-jupyter>=1.0.0
-ipykernel>=6.25.0
-notebook>=7.0.0
+# Jupyter (optional - not needed for Streamlit Cloud, but kept for local development)
+# jupyter>=1.0.0
+# ipykernel>=6.25.0
+# notebook>=7.0.0
 
 # Utilities
 tqdm>=4.65.0
