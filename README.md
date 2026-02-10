@@ -38,6 +38,15 @@ The system leverages pretrained deep learning models (ResNet50 and EfficientNet-
 - PyTorch 2.0+
 - CUDA (optional, for GPU acceleration)
 
+### Hardware Requirements
+
+**Training Environment:**
+- **GPU**: NVIDIA A100 GPU (used for model training)
+- **Note**: Training can be performed on CPU, but GPU acceleration significantly reduces training time, especially for fine-tuning the EfficientNet-B3 model
+
+**Inference:**
+- CPU is sufficient for inference using the Streamlit web application
+
 ### Installation
 
 ```bash
