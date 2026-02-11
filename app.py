@@ -322,11 +322,11 @@ resnet_available = os.path.exists('models/brain_tumor_classifier_resnet50.pkl') 
 # Build model options list
 model_options = []
 if fine_tuned_available:
-    model_options.append("EfficientNet-B3 Fine-Tuned (Best - 97.64%)")
+    model_options.append("EfficientNet-B3 Fine-Tuned (Best - 97.5% Recall)")
 if effnet_available:
-    model_options.append("EfficientNet-B3 Feature Extraction (91.34%)")
+    model_options.append("EfficientNet-B3 Feature Extraction (91.0% Recall)")
 if resnet_available:
-    model_options.append("ResNet50 Feature Extraction (91.34%)")
+    model_options.append("ResNet50 Feature Extraction (91.0% Recall)")
 
 if not model_options:
     st.sidebar.error("No models available. Please train models first.")
@@ -336,7 +336,7 @@ if not model_options:
 model_type = st.sidebar.selectbox(
     "Select Model",
     model_options,
-    help="Choose the model for classification. Fine-tuned model offers best accuracy."
+    help="Choose the model for classification. Fine-tuned model offers best recall and accuracy."
 )
 
 # Confidence interpretation guide
@@ -1108,6 +1108,7 @@ else:
         **Fine-Tuned EfficientNet-B3** (Recommended)
         
         **Performance:**
+        - Recall: 97.5%
         - Accuracy: 97.64%
         - F1-Score: 0.98
         
@@ -1125,6 +1126,7 @@ else:
         **EfficientNet-B3 Feature Extraction**
         
         **Performance:**
+        - Recall: 91.0%
         - Accuracy: 91.34%
         - F1-Score: 0.913
         
@@ -1142,6 +1144,7 @@ else:
         **ResNet50 Feature Extraction**
         
         **Performance:**
+        - Recall: 91.0%
         - Accuracy: 91.34%
         - F1-Score: 0.913
         
