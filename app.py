@@ -314,6 +314,90 @@ st.markdown("""
 st.sidebar.title("Configuration")
 st.sidebar.markdown("---")
 
+# Function to check and download models from Git LFS if needed (for Streamlit Cloud)
+def ensure_models_available():
+    """Ensure model files are available, download from Git LFS if needed"""
+    import subprocess
+    
+    models_to_check = [
+        'models/efficientnet_b3_finetuned.pth',
+        'models/brain_tumor_classifier_efficientnet_b3.pkl',
+        'models/scaler_efficientnet_b3.pkl',
+        'models/brain_tumor_classifier_resnet50.pkl',
+        'models/scaler_resnet50.pkl'
+    ]
+    
+    # Check if any models are missing
+    missing_models = [m for m in models_to_check if not os.path.exists(m)]
+    
+    if missing_models:
+        print(f"⚠️ Missing models detected: {missing_models}")
+        # Try to pull Git LFS files
+        try:
+            # Check if we're in a git repository
+            git_dir = subprocess.run(['git', 'rev-parse', '--git-dir'], 
+                                    capture_output=True, 
+                                    timeout=5)
+            
+            if git_dir.returncode == 0:
+                # Initialize Git LFS if needed
+                subprocess.run(['git', 'lfs', 'install', '--local'], 
+                             capture_output=True, 
+                             timeout=10)
+                
+                # Configure Git LFS to use HTTPS instead of SSH (required for Streamlit Cloud)
+                # Force Git LFS to use HTTPS authentication by setting the LFS URL
+                remote_result = subprocess.run(['git', 'remote', 'get-url', 'origin'], 
+                                              capture_output=True, 
+                                              text=True, 
+                                              timeout=5)
+                if remote_result.returncode == 0:
+                    remote_url = remote_result.stdout.strip()
+                    # Convert to HTTPS if needed
+                    if remote_url.startswith('git@github.com:'):
+                        https_url = remote_url.replace('git@github.com:', 'https://github.com/')
+                    elif remote_url.startswith('https://github.com/'):
+                        https_url = remote_url
+                    else:
+                        https_url = None
+                    
+                    if https_url:
+                        # Configure LFS to use HTTPS endpoint explicitly
+                        lfs_endpoint = https_url.replace('.git', '') + '.git/info/lfs'
+                        subprocess.run(['git', 'config', '--local', 'lfs.url', lfs_endpoint], 
+                                     capture_output=True, 
+                                     timeout=5)
+                        print(f"Configured Git LFS to use HTTPS: {lfs_endpoint}")
+                
+                # Pull LFS files
+                result = subprocess.run(['git', 'lfs', 'pull'], 
+                                       capture_output=True, 
+                                       text=True, 
+                                       timeout=180)
+                if result.returncode == 0:
+                    print("✓ Git LFS pull successful")
+                    # Verify files were downloaded
+                    for model in missing_models:
+                        if os.path.exists(model):
+                            file_size = os.path.getsize(model)
+                            print(f"✓ {model} downloaded ({file_size / (1024*1024):.2f} MB)")
+                        else:
+                            print(f"✗ {model} still missing after LFS pull")
+                else:
+                    print(f"✗ Git LFS pull failed")
+                    print(f"Error: {result.stderr[:200]}")
+            else:
+                print("⚠️ Not in a git repository - cannot pull LFS files")
+        except FileNotFoundError:
+            print("⚠️ Git/Git LFS not available - models may need manual setup")
+        except (subprocess.TimeoutExpired, Exception) as e:
+            print(f"⚠️ Could not pull Git LFS files: {str(e)[:100]}")
+
+# Try to ensure models are available (only run once at startup)
+if 'models_checked' not in st.session_state:
+    ensure_models_available()
+    st.session_state.models_checked = True
+
 # Check which models are available
 fine_tuned_available = os.path.exists('models/efficientnet_b3_finetuned.pth')
 effnet_available = os.path.exists('models/brain_tumor_classifier_efficientnet_b3.pkl') and os.path.exists('models/scaler_efficientnet_b3.pkl')
