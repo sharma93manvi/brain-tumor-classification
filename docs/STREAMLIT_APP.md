@@ -20,8 +20,8 @@ The Streamlit web application provides an interactive interface for brain tumor 
 
 2. **Ensure Model Files Exist**:
    - `models/efficientnet_b3_finetuned.pth` (for fine-tuned model)
-   - `models/model_effnet.pkl` and `models/scaler_effnet.pkl` (for EfficientNet feature extraction)
-   - `models/model_resnet.pkl` and `models/scaler_resnet.pkl` (for ResNet50 feature extraction)
+   - `models/brain_tumor_classifier_efficientnet_b3.pkl` and `models/scaler_efficientnet_b3.pkl` (for EfficientNet feature extraction)
+   - `models/brain_tumor_classifier_resnet50.pkl` and `models/scaler_resnet50.pkl` (for ResNet50 feature extraction)
 
 ## Running the App
 
@@ -106,7 +106,10 @@ Then access via: `http://YOUR_IP_ADDRESS:8501`
 
 ### Model Files Not Found
 - Ensure model files are in the `models/` directory
-- Check file names match exactly: `efficientnet_b3_finetuned.pth`, `model_effnet.pkl`, etc.
+- Check file names match exactly: 
+  - `efficientnet_b3_finetuned.pth` (fine-tuned model)
+  - `brain_tumor_classifier_efficientnet_b3.pkl` and `scaler_efficientnet_b3.pkl` (EfficientNet feature extraction)
+  - `brain_tumor_classifier_resnet50.pkl` and `scaler_resnet50.pkl` (ResNet50 feature extraction)
 - Run the training notebook to generate model files if missing
 
 ### Import Errors

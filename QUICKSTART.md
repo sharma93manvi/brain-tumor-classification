@@ -14,8 +14,8 @@ pip install -r requirements.txt
 Make sure you have trained models in the `models/` directory:
 
 - `models/efficientnet_b3_finetuned.pth` (for fine-tuned model)
-- `models/model_effnet.pkl` and `models/scaler_effnet.pkl` (for EfficientNet feature extraction)
-- `models/model_resnet.pkl` and `models/scaler_resnet.pkl` (for ResNet50 feature extraction)
+- `models/brain_tumor_classifier_efficientnet_b3.pkl` and `models/scaler_efficientnet_b3.pkl` (for EfficientNet feature extraction)
+- `models/brain_tumor_classifier_resnet50.pkl` and `models/scaler_resnet50.pkl` (for ResNet50 feature extraction)
 
 **Note**: If you don't have these files, run the training cells in `notebooks/brain_tumor_classification.ipynb` first.
 

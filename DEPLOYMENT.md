@@ -80,11 +80,11 @@ If you see "Model Not Available" errors:
 
 1. **Check file paths**: Ensure model files are in `models/` directory
 2. **Check file names**: Verify filenames match what `app.py` expects:
-   - `models/efficientnet_b3_finetuned.pth`
-   - `models/brain_tumor_classifier_efficientnet_b3.pkl`
-   - `models/brain_tumor_classifier_resnet50.pkl`
-   - `models/scaler_efficientnet_b3.pkl`
-   - `models/scaler_resnet50.pkl`
+   - `models/efficientnet_b3_finetuned.pth` (fine-tuned model)
+   - `models/brain_tumor_classifier_efficientnet_b3.pkl` (EfficientNet classifier)
+   - `models/brain_tumor_classifier_resnet50.pkl` (ResNet50 classifier)
+   - `models/scaler_efficientnet_b3.pkl` (EfficientNet scaler)
+   - `models/scaler_resnet50.pkl` (ResNet50 scaler)
 
 ### Memory Issues
 
