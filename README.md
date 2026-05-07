@@ -1,6 +1,6 @@
 # Brain Tumor Classification from MRI Scans
 
-A deep learning clinical decision-support tool that classifies brain tumors from MRI images into four categories: **No Tumor**, **Glioma**, **Meningioma**, and **Pituitary Tumor**. The system uses transfer learning with domain-specific medical image preprocessing to achieve 97.64% classification accuracy.
+A deep learning clinical decision-support tool that classifies brain tumors from MRI images into four categories: **No Tumor**, **Glioma**, **Meningioma**, and **Pituitary Tumor**. The system uses transfer learning with domain-specific medical image preprocessing, achieving **≥95.9% recall across all tumor classes** — meaning fewer than 5% of tumors are missed by the model.
 
 > **Disclaimer**: This is a research project. It is not intended to replace clinical judgment. Any clinical deployment would require additional validation and regulatory approval.
 
@@ -106,7 +106,35 @@ We implemented a progressive approach from simple baselines to advanced deep lea
 
 ## Results
 
-### Model Performance Summary
+### Primary Metric: Recall (Sensitivity)
+
+In a clinical setting, a **false negative** — telling a patient they have no tumor when they do — is far more dangerous than a false positive. A false positive leads to additional testing; a false negative leads to missed or delayed treatment.
+
+For this reason, **recall (sensitivity) is the primary metric** we optimized for and report on. High recall means fewer missed diagnoses.
+
+### Class-Wise Recall — Best Model (Fine-Tuned EfficientNet-B3)
+
+| Class | Recall (Sensitivity) | Clinical Interpretation |
+|-------|:--------------------:|------------------------|
+| No Tumor | 99.33% | Correctly identifies healthy patients |
+| Glioma | 95.91% | Catches 96 out of 100 glioma cases |
+| Meningioma | 97.27% | Catches 97 out of 100 meningioma cases |
+| Pituitary | 97.81% | Catches 98 out of 100 pituitary tumor cases |
+| **Tumor detection (binary)** | **99.76%** | **Misses fewer than 1 in 400 tumors** |
+
+All tumor classes exceed the clinical safety target of ≥85% recall, ensuring minimal false negatives.
+
+### Full Per-Class Metrics (Fine-Tuned EfficientNet-B3)
+
+| Class | Precision | Recall | F1-Score | Support |
+|-------|:---------:|:------:|:--------:|:-------:|
+| No Tumor | 0.99 | 0.99 | 0.99 | 298 |
+| Glioma | 0.98 | 0.96 | 0.97 | 269 |
+| Meningioma | 0.94 | 0.97 | 0.96 | 256 |
+| Pituitary | 0.99 | 0.98 | 0.98 | 320 |
+| **Weighted Avg** | **0.98** | **0.98** | **0.98** | **1,143** |
+
+### Model Comparison (All Approaches)
 
 | Model | Approach | Test Accuracy | F1-Score (Macro) |
 |-------|----------|:------------:|:----------------:|
@@ -114,6 +142,8 @@ We implemented a progressive approach from simple baselines to advanced deep lea
 | ResNet50 | Feature Extraction (frozen) | 91.34% | 0.91 |
 | EfficientNet-B3 | Feature Extraction (frozen) | 91.34% | 0.91 |
 | **EfficientNet-B3** | **Fine-Tuning (10 epochs)** | **97.64%** | **0.98** |
+
+> **A note on the 97.64% accuracy**: This number is high partly because the dataset is well-balanced across four classes and relatively clean (curated Kaggle dataset with consistent image quality). In a real clinical setting with noisier images, varied scanners, and edge-case presentations, accuracy would likely be lower. This is why we emphasize recall over accuracy — it directly measures whether the model misses tumors, which is the clinically meaningful failure mode. The cross-validation results (90.60% ± 0.49%) on the feature extraction model give a more conservative estimate of generalization performance.
 
 ### Cross-Validation Results (ResNet50 Feature Extraction)
 
@@ -128,46 +158,15 @@ We implemented a progressive approach from simple baselines to advanced deep lea
 
 The low standard deviation across folds confirms the model generalizes consistently and is not dependent on a specific train/test split.
 
-### Best Model: Fine-Tuned EfficientNet-B3 (Per-Class Metrics)
-
-| Class | Precision | Recall | F1-Score | Support |
-|-------|:---------:|:------:|:--------:|:-------:|
-| No Tumor | 0.99 | 0.99 | 0.99 | 298 |
-| Glioma | 0.98 | 0.96 | 0.97 | 269 |
-| Meningioma | 0.94 | 0.97 | 0.96 | 256 |
-| Pituitary | 0.99 | 0.98 | 0.98 | 320 |
-| **Weighted Avg** | **0.98** | **0.98** | **0.98** | **1,143** |
-
----
-
-## Evaluation Strategy and Prioritized Metrics
-
-### Why Recall (Sensitivity) is the Priority Metric
-
-In a clinical setting, a **false negative** — telling a patient they have no tumor when they do, or misclassifying a malignant tumor — is far more dangerous than a false positive. A false positive leads to additional testing; a false negative leads to missed or delayed treatment.
-
-Therefore, **recall (sensitivity)** is the primary metric we optimized for, particularly for tumor classes.
-
 ### Clinical Safety Targets and Results
 
 | Metric | Target | Achieved |
 |--------|:------:|:--------:|
-| Overall accuracy | ≥ 80% | 97.64% |
-| F1-score for Glioma/Meningioma differentiation | ≥ 0.70 | 0.97 / 0.96 |
 | Recall for all tumor classes | ≥ 0.85 | All ≥ 0.96 |
-| Tumor detection recall (binary: tumor vs no tumor) | — | 99.76% |
-| No tumor detection recall (specificity) | — | 99.33% |
-
-### Class-Wise Recall (Fine-Tuned Model)
-
-| Class | Recall | Status |
-|-------|:------:|--------|
-| No Tumor | 99.33% | Exceeds target |
-| Glioma | 95.91% | Exceeds target |
-| Meningioma | 97.27% | Exceeds target |
-| Pituitary | 97.81% | Exceeds target |
-
-All tumor classes exceed the ≥85% recall threshold, ensuring minimal false negatives (missed diagnoses).
+| Tumor detection recall (binary) | — | 99.76% |
+| No tumor detection specificity | — | 99.33% |
+| F1-score for Glioma/Meningioma differentiation | ≥ 0.70 | 0.97 / 0.96 |
+| Overall accuracy | ≥ 80% | 97.64% |
 
 ### How We Verified Results
 
