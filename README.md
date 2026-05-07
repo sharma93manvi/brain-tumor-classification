@@ -2,6 +2,8 @@
 
 A deep learning clinical decision-support tool that classifies brain tumors from MRI images into four categories: **No Tumor**, **Glioma**, **Meningioma**, and **Pituitary Tumor**. The system uses transfer learning with domain-specific medical image preprocessing, achieving **≥95.9% recall across all tumor classes** — meaning fewer than 5% of tumors are missed by the model.
 
+**[Live Demo →](https://ai-brain-tumor-classifier.streamlit.app/)**
+
 > **Disclaimer**: This is a research project. It is not intended to replace clinical judgment. Any clinical deployment would require additional validation and regulatory approval. The high recall and accuracy numbers are partly a reflection of the dataset — it is well-balanced, curated, and sourced from a single collection with consistent image quality. Real-world clinical data with varied scanners, protocols, and edge cases would likely yield lower numbers.
 
 ---
